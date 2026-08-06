@@ -796,8 +796,8 @@
           }
           appendAnswer(decoder.decode());
         }
-        if(!answer.trim()&&!pendingChars.length)throw new Error('Empty streaming response');
         await waitForReveal();
+        if(!answer.trim())throw new Error('Empty streaming response');
         ensureAnswerNode().classList.remove('streaming');answerNode.removeAttribute('aria-busy');finishRender();
       }catch(err){
         if(answerNode&&(answer.trim()||pendingChars.length)){
@@ -805,6 +805,7 @@
           answerNode.classList.remove('streaming');answerNode.removeAttribute('aria-busy');finishRender();
           const note=document.createElement('span');note.className='chat-stream-note';note.textContent='连接中断，以上回答可能不完整。';answerNode.appendChild(note);
         }else{
+          if(answerNode){answerNode.remove();answerNode=null}
           const hint=location.protocol==='file:'?'请通过本地服务器预览，并先运行 wrangler dev。':'请稍后重试。';
           addMsg('a err','暂时无法连接问答服务。'+hint);
         }
