@@ -710,7 +710,8 @@
       const chips=document.getElementById('chatChips');if(chips)chips.remove();
       addMsg('u',q);
       const dots=document.createElement('div');dots.className='chat-msg a chat-dots';dots.setAttribute('aria-hidden','true');dots.innerHTML='<span class="dot"></span><span class="dot"></span><span class="dot"></span>';cbody.appendChild(dots);cbody.scrollTop=cbody.scrollHeight;
-      let answer='',answerNode=null,renderFrame=0;
+      let answer='',answerNode=null,renderFrame=0,revealTimer=0;
+      const pendingChars=[],drainWaiters=[];
       const renderAnswer=()=>{
         renderFrame=0;if(!answerNode)return;
         const stickToBottom=cbody.scrollHeight-cbody.scrollTop-cbody.clientHeight<80;
@@ -725,7 +726,20 @@
         }
         return answerNode;
       };
-      const appendAnswer=text=>{if(text){answer+=text;ensureAnswerNode();queueRender()}};
+      const revealNext=()=>{
+        revealTimer=0;
+        if(pendingChars.length){
+          const batchSize=Math.min(18,Math.max(1,Math.ceil(pendingChars.length/24)));
+          answer+=pendingChars.splice(0,batchSize).join('');queueRender();
+          revealTimer=setTimeout(revealNext,28);
+        }else drainWaiters.splice(0).forEach(resolve=>resolve());
+      };
+      const appendAnswer=text=>{
+        if(!text)return;
+        ensureAnswerNode();pendingChars.push(...Array.from(text));
+        if(!revealTimer)revealTimer=setTimeout(revealNext,0);
+      };
+      const waitForReveal=()=>pendingChars.length||revealTimer?new Promise(resolve=>drainWaiters.push(resolve)):Promise.resolve();
       try{
         const res=await fetch(endpoint,{method:'POST',headers:{'Content-Type':'application/json','Accept':'text/event-stream'},body:JSON.stringify({question:q})});
         if(!res.ok){
@@ -782,10 +796,12 @@
           }
           appendAnswer(decoder.decode());
         }
-        if(!answer.trim())throw new Error('Empty streaming response');
+        if(!answer.trim()&&!pendingChars.length)throw new Error('Empty streaming response');
+        await waitForReveal();
         ensureAnswerNode().classList.remove('streaming');answerNode.removeAttribute('aria-busy');finishRender();
       }catch(err){
-        if(answerNode&&answer.trim()){
+        if(answerNode&&(answer.trim()||pendingChars.length)){
+          await waitForReveal();
           answerNode.classList.remove('streaming');answerNode.removeAttribute('aria-busy');finishRender();
           const note=document.createElement('span');note.className='chat-stream-note';note.textContent='连接中断，以上回答可能不完整。';answerNode.appendChild(note);
         }else{
