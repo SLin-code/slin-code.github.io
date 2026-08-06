@@ -725,8 +725,9 @@
         }
         return answerNode;
       };
+      const appendAnswer=text=>{if(text){answer+=text;ensureAnswerNode();queueRender()}};
       try{
-        const res=await fetch(endpoint,{method:'POST',headers:{'Content-Type':'application/json','Accept':'text/plain'},body:JSON.stringify({question:q})});
+        const res=await fetch(endpoint,{method:'POST',headers:{'Content-Type':'application/json','Accept':'text/event-stream'},body:JSON.stringify({question:q})});
         if(!res.ok){
           const data=await res.json().catch(()=>({}));
           dots.remove();addMsg('a err',data.error||('出错了：HTTP '+res.status));return;
@@ -741,14 +742,46 @@
         if(!res.body)throw new Error('Streaming response body unavailable');
 
         const reader=res.body.getReader(),decoder=new TextDecoder();
-        while(true){
-          const part=await reader.read();
-          if(part.done)break;
-          const text=decoder.decode(part.value,{stream:true});
-          if(!text)continue;
-          answer+=text;ensureAnswerNode();queueRender();
+        if(responseType.includes('text/event-stream')){
+          let eventBuffer='',doneSeen=false,streamError='';
+          const consumeEvent=raw=>{
+            let eventName='message';const dataLines=[];
+            raw.split(/\r?\n/).forEach(line=>{
+              if(line.startsWith('event:'))eventName=line.slice(6).trim();
+              else if(line.startsWith('data:'))dataLines.push(line.slice(5).replace(/^ /,''));
+            });
+            const payload=dataLines.join('\n');
+            if(eventName==='delta'){
+              const data=JSON.parse(payload||'{}');appendAnswer(typeof data.text==='string'?data.text:'');
+            }else if(eventName==='done')doneSeen=true;
+            else if(eventName==='error'){
+              try{streamError=JSON.parse(payload||'{}').message||'回答生成中断。'}catch(_){streamError='回答生成中断。'}
+            }
+          };
+          const drainEvents=flush=>{
+            let boundary=eventBuffer.match(/\r?\n\r?\n/);
+            while(boundary){
+              consumeEvent(eventBuffer.slice(0,boundary.index));
+              eventBuffer=eventBuffer.slice(boundary.index+boundary[0].length);
+              boundary=eventBuffer.match(/\r?\n\r?\n/);
+            }
+            if(flush&&eventBuffer.trim()){consumeEvent(eventBuffer);eventBuffer=''}
+          };
+          while(true){
+            const part=await reader.read();if(part.done)break;
+            eventBuffer+=decoder.decode(part.value,{stream:true});drainEvents(false);
+          }
+          eventBuffer+=decoder.decode();drainEvents(true);
+          if(streamError)throw new Error(streamError);
+          if(!doneSeen)throw new Error('Streaming response ended before done');
+        }else{
+          // 兼容短暂存在过的 text/plain 流式 Worker。
+          while(true){
+            const part=await reader.read();if(part.done)break;
+            appendAnswer(decoder.decode(part.value,{stream:true}));
+          }
+          appendAnswer(decoder.decode());
         }
-        answer+=decoder.decode();
         if(!answer.trim())throw new Error('Empty streaming response');
         ensureAnswerNode().classList.remove('streaming');answerNode.removeAttribute('aria-busy');finishRender();
       }catch(err){
