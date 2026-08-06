@@ -7,6 +7,14 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap" rel="stylesheet">
+<script>
+  // 首次会话在主脚本加载前预占欢迎层，避免先闪出正文；失败时自动解锁页面。
+  const directTarget=location.hash&&location.hash!=='#top';
+  try{
+    if(!directTarget&&sessionStorage.getItem('workme-welcome-seen-v1')!=='1')document.documentElement.classList.add('intro-pending');
+  }catch(_){if(!directTarget)document.documentElement.classList.add('intro-pending')}
+  window.__workmeIntroFailSafe=setTimeout(()=>document.documentElement.classList.remove('intro-pending'),5000);
+</script>
 <style>
   /* ============================================================
      按 VoltAgent/awesome-design-md 的 Apple DESIGN.md 重设。
@@ -105,8 +113,96 @@
   .pill-primary{background:var(--primary);border-color:var(--primary)}
   .pill-primary:hover{background:var(--primary-focus);border-color:var(--primary-focus)}
   .pill:active{transform:scale(.95)}
+  .hero-visit{display:inline-flex;align-items:center;gap:8px;margin-top:18px;padding:8px 13px;border:1px solid rgba(255,255,255,.18);
+    border-radius:var(--r-pill);background:transparent;color:var(--body-muted);font:600 11px/1 var(--sans);letter-spacing:.06em;
+    cursor:pointer;font-variant-numeric:tabular-nums;transition:color .2s,border-color .2s,transform .2s var(--ease-out)}
+  .hero-visit:hover{color:#fff;border-color:rgba(255,255,255,.38)}
+  .hero-visit:active{transform:scale(.95)}
+  .hero-visit[hidden]{display:none}
+  .hero-visit-dot{width:6px;height:6px;border-radius:50%;background:var(--primary-on-dark);box-shadow:0 0 0 4px rgba(41,151,255,.12)}
   .scroll-hint{position:absolute;bottom:32px;left:50%;transform:translateX(-50%);font-size:12px;color:var(--body-muted);letter-spacing:.02em;animation:float 2.4s ease-in-out infinite}
   @keyframes float{0%,100%{transform:translate(-50%,0);opacity:.5}50%{transform:translate(-50%,6px);opacity:1}}
+
+  /* 首次欢迎层：读取事实源的轻量启动感，正文不参与改写。 */
+  html.intro-pending,html.intro-pending body,body.modal-open{overflow:hidden}
+  .intro{position:fixed;inset:0;z-index:500;display:grid;place-items:center;overflow-x:hidden;overflow-y:auto;overscroll-behavior:contain;
+    min-height:100dvh;padding:max(28px,env(safe-area-inset-top)) max(20px,env(safe-area-inset-right))
+      max(28px,env(safe-area-inset-bottom)) max(20px,env(safe-area-inset-left));
+    background:var(--tile-dark);color:var(--on-dark);opacity:0;visibility:hidden;pointer-events:none;
+    transition:opacity .45s var(--ease-out),visibility 0s linear .45s}
+  .intro.open,.intro-pending .intro{opacity:1;visibility:visible;pointer-events:auto;transition-delay:0s}
+  .intro.closing{opacity:0;pointer-events:none}
+  .intro-skip{position:absolute;top:max(18px,env(safe-area-inset-top));right:max(20px,env(safe-area-inset-right));z-index:2;
+    min-height:44px;padding:0 12px;border:0;background:transparent;color:var(--body-muted);font-size:13px;cursor:pointer}
+  .intro-skip:hover{color:#fff}
+  .intro-frame{position:relative;width:min(980px,100%);min-height:560px;display:grid;place-items:center;text-align:center}
+  .intro-orbit{position:absolute;left:50%;top:50%;width:min(68vw,520px);aspect-ratio:1;border:1px solid rgba(255,255,255,.055);
+    border-radius:50%;transform:translate(-50%,-50%);pointer-events:none}
+  .intro-orbit::before,.intro-orbit::after{content:"";position:absolute;border:1px solid rgba(41,151,255,.09);border-radius:50%}
+  .intro-orbit::before{inset:16%}.intro-orbit::after{inset:34%}
+  .intro-orbit i{position:absolute;width:8px;height:8px;border:2px solid var(--primary-on-dark);border-radius:50%;background:var(--tile-dark)}
+  .intro-orbit i:nth-child(1){left:8%;top:48%}.intro-orbit i:nth-child(2){right:17%;top:13%}.intro-orbit i:nth-child(3){right:6%;bottom:31%}
+  .intro-boot{position:absolute;z-index:1;width:min(330px,88%);text-align:left;transition:opacity .3s ease,transform .45s var(--ease-out)}
+  .intro-boot-label{color:var(--primary-on-dark);font:600 11px/1.2 var(--sans);letter-spacing:.12em;margin-bottom:16px}
+  .intro-boot-row{display:flex;justify-content:space-between;gap:16px;padding:10px 0;border-top:1px solid rgba(255,255,255,.09);
+    color:var(--body-muted);font:400 13px/1.3 ui-monospace,SFMono-Regular,Menlo,monospace}
+  .intro-boot-row span:last-child{color:#fff}
+  .intro.ready .intro-boot{opacity:0;transform:translateY(-12px);pointer-events:none}
+  .intro-content{position:relative;z-index:1;width:100%;opacity:0;transform:translateY(18px);pointer-events:none;
+    transition:opacity .55s .12s var(--ease-out),transform .65s .12s var(--ease-out)}
+  .intro.ready .intro-content{opacity:1;transform:none;pointer-events:auto}
+  .intro-view{display:none}.intro[data-view="welcome"] .intro-welcome{display:block}
+  .intro-logo{width:62px;height:62px;border-radius:15px;object-fit:cover;margin-bottom:24px}
+  .intro-kicker{color:var(--primary-on-dark);font-size:12px;font-weight:600;letter-spacing:.12em;text-transform:uppercase}
+  .intro h1{max-width:680px;margin:14px auto 0;font-size:clamp(34px,6vw,52px);line-height:1.08;color:#fff;text-wrap:balance}
+  .intro-copy{max-width:600px;margin:18px auto 0;color:var(--body-muted);font-size:clamp(16px,2.3vw,19px);line-height:1.6;text-wrap:pretty}
+  .intro-visit{min-height:29px;margin-top:18px;color:#fff;font-size:16px;font-variant-numeric:tabular-nums}
+  .intro-visit strong{color:var(--primary-on-dark);font-size:22px}
+  .intro-actions{display:flex;justify-content:center;gap:10px;flex-wrap:wrap;margin-top:30px}
+  .intro-action{display:inline-flex;align-items:center;justify-content:center;min-height:46px;padding:0 20px;border-radius:var(--r-pill);
+    border:1px solid rgba(255,255,255,.26);background:transparent;color:#fff;font-size:14px;font-weight:600;cursor:pointer;
+    transition:transform .2s var(--ease-out),border-color .2s,background .2s}
+  .intro-action:hover{border-color:rgba(255,255,255,.55)}.intro-action:active{transform:scale(.95)}
+  .intro-action.primary{background:var(--primary);border-color:var(--primary)}
+  .intro-action.primary:hover{background:var(--primary-focus);border-color:var(--primary-focus)}
+  .intro-system-meta{display:flex;justify-content:center;gap:18px;flex-wrap:wrap;margin-top:28px;color:#77777d;font-size:11px;letter-spacing:.05em}
+  .intro-choice-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px;max-width:820px;margin:30px auto 0;text-align:left}
+  .intro-choice{position:relative;min-height:178px;padding:24px;border:1px solid rgba(255,255,255,.14);border-radius:var(--r-lg);
+    background:rgba(255,255,255,.025);color:#fff;text-align:left;cursor:pointer;overflow:hidden;
+    transition:transform .28s var(--ease-out),border-color .25s,background .25s}
+  .intro-choice::after{content:"→";position:absolute;right:22px;bottom:20px;color:var(--primary-on-dark);font-size:20px;transition:transform .25s var(--ease-out)}
+  .intro-choice:hover,.intro-choice:focus-visible{transform:translateY(-4px);border-color:rgba(41,151,255,.56);background:rgba(41,151,255,.07)}
+  .intro-choice:hover::after,.intro-choice:focus-visible::after{transform:translateX(4px)}
+  .intro-choice-kicker{display:block;color:var(--primary-on-dark);font-size:11px;font-weight:600;letter-spacing:.1em;text-transform:uppercase}
+  .intro-choice strong{display:block;margin-top:12px;font-size:24px;line-height:1.15}
+  .intro-choice small{display:block;max-width:310px;margin-top:11px;color:var(--body-muted);font-size:14px;line-height:1.55}
+  .intro-choice.primary{border-color:rgba(41,151,255,.42);background:rgba(41,151,255,.055)}
+  .intro-question{max-width:670px;margin:16px auto 0;font-size:clamp(28px,4.4vw,40px);line-height:1.18;color:#fff;text-wrap:balance}
+  .intro-options{display:grid;gap:10px;max-width:650px;margin:28px auto 0;text-align:left}
+  .intro-option{position:relative;width:100%;min-height:54px;padding:14px 48px 14px 18px;border:1px solid rgba(255,255,255,.14);
+    border-radius:var(--r-md);background:rgba(255,255,255,.025);color:#e8e8ed;font-size:15px;line-height:1.45;text-align:left;cursor:pointer;
+    transition:border-color .2s,background .2s,transform .2s var(--ease-out)}
+  .intro-option::after{content:"→";position:absolute;right:18px;top:50%;transform:translateY(-50%);color:#6e6e73}
+  .intro-option:hover{border-color:rgba(41,151,255,.65);background:rgba(41,151,255,.06)}
+  .intro-option:active{transform:scale(.99)}
+  .intro.answered .intro-option{cursor:default;opacity:.5}.intro.answered .intro-option.selected{opacity:1;border-color:var(--primary-on-dark);background:rgba(41,151,255,.1)}
+  .intro-result{display:none;max-width:650px;margin:22px auto 0;padding:20px 22px;border-left:2px solid var(--primary-on-dark);
+    background:rgba(255,255,255,.035);text-align:left;color:var(--body-muted);font-size:15px;line-height:1.65}
+  .intro-result strong{display:block;margin-bottom:6px;color:#fff;font-size:17px}
+  .intro.answered .intro-result{display:block}.intro.answered .intro-options{margin-top:20px}
+  .intro.answered .intro-result-actions{display:flex}
+  .intro-result-actions{display:none;justify-content:center;gap:10px;flex-wrap:wrap;margin-top:22px}
+  @media(max-width:560px){
+    .intro{place-items:start center;padding-top:max(14px,env(safe-area-inset-top));padding-bottom:max(14px,env(safe-area-inset-bottom))}
+    .intro-frame{min-height:0;padding:58px 0 12px}.intro-orbit{width:116vw}.intro-logo{width:48px;height:48px;margin-bottom:14px}
+    .intro h1{margin-top:9px;font-size:30px}.intro-copy{margin-top:10px;font-size:14px;line-height:1.45}
+    .intro-visit{min-height:22px;margin-top:10px;font-size:14px}.intro-visit strong{font-size:18px}
+    .intro-actions{flex-direction:column;align-items:stretch}.intro-action{width:100%}
+    .intro-choice-grid{grid-template-columns:1fr;gap:8px;margin-top:14px}.intro-choice{min-height:104px;padding:15px 42px 15px 16px}
+    .intro-choice::after{right:14px;bottom:14px}.intro-choice strong{margin-top:7px;font-size:18px}.intro-choice small{margin-top:6px;font-size:12.5px;line-height:1.4}
+    .intro-system-meta{gap:6px 12px;margin-top:12px;font-size:10px}.intro-question{font-size:28px}.intro-options{margin-top:22px}.intro-option{font-size:14px}}
+  @media(max-width:560px) and (max-height:650px){
+    .intro-logo,.intro-system-meta{display:none}.intro-frame{padding-top:54px}}
 
   /* 分节标题：display-md 语气 */
   .sec-head{margin-bottom:48px}
@@ -152,7 +248,7 @@
   .proj-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,320px),1fr));gap:20px;align-items:start}
   /* store-utility-card：白底 + 1px hairline + r-lg，零阴影 */
   .proj{background:var(--canvas);border:1px solid var(--hairline);border-radius:var(--r-lg);padding:28px;
-    display:flex;flex-direction:column;transition:transform .35s var(--ease-out),border-color .25s,background .25s}
+    display:flex;flex-direction:column;scroll-margin-top:76px;transition:transform .35s var(--ease-out),border-color .25s,background .25s}
   .proj.is-representative{border-color:rgba(0,102,204,.32);background:linear-gradient(180deg,rgba(0,102,204,.045),var(--canvas) 150px)}
   .proj.open{border-color:rgba(0,102,204,.5);background:#fcfdff}
   .proj.hide{display:none}
@@ -180,6 +276,8 @@
   .proj.open .proj-toggle{margin-top:16px}
   .proj-arrow{display:inline-block;font-size:15px;transition:transform .35s var(--ease-out)}
   .proj.open .proj-arrow{transform:rotate(180deg)}
+  .proj.evidence-focus{animation:evidence-pulse 1.1s var(--ease-out)}
+  @keyframes evidence-pulse{0%,100%{border-color:var(--hairline)}35%{border-color:var(--primary);box-shadow:0 0 0 5px rgba(0,102,204,.08)}}
   @media(min-width:700px){
     /* 收起态按内容层级预留统一行高，让结果、摘要与展开按钮严格对齐。 */
     .proj:not(.open) .proj-title{min-block-size:2.5em}
@@ -187,6 +285,107 @@
     .proj:not(.open) .proj-highlight{min-block-size:2.9em}
     .proj:not(.open) .proj-sum{min-block-size:4.74em}
   }
+
+  /* WorkMe Decision Lab：用真实情境、判断、动作与证据替代蜘蛛网线图。 */
+  .lab-shell{border:1px solid rgba(255,255,255,.1);border-radius:var(--r-lg);overflow:hidden;background:#18181b}
+  .lab-topbar{display:flex;align-items:center;justify-content:space-between;gap:18px;padding:14px 18px;border-bottom:1px solid rgba(255,255,255,.08)}
+  .lab-back,.lab-view-tab,.lab-route,.lab-choice,.lab-button,.lab-followup,.lab-library-card{font-family:inherit}
+  .lab-back{min-height:44px;padding:0 12px;border:0;background:transparent;color:var(--body-muted);font-size:13px;cursor:pointer}
+  .lab-back:hover{color:#fff}
+  .lab-brand{color:#fff;font-size:12px;font-weight:600;letter-spacing:.12em;text-transform:uppercase}
+  .lab-view-tabs{display:flex;gap:4px;padding:4px;border:1px solid rgba(255,255,255,.1);border-radius:var(--r-pill)}
+  .lab-view-tab{min-height:36px;padding:0 12px;border:0;border-radius:var(--r-pill);background:transparent;color:var(--body-muted);font-size:12px;cursor:pointer}
+  .lab-view-tab[aria-pressed="true"]{background:rgba(41,151,255,.14);color:#fff}
+  .lab-panel[hidden]{display:none}
+  .lab-replay{display:grid;grid-template-columns:minmax(205px,.72fr) minmax(0,1.75fr) minmax(220px,.82fr);min-height:620px}
+  .lab-route-list{padding:18px;border-right:1px solid rgba(255,255,255,.08);display:flex;flex-direction:column;gap:8px}
+  .lab-route-list-title{padding:2px 4px 10px;color:#77777d;font-size:11px;font-weight:600;letter-spacing:.1em;text-transform:uppercase}
+  .lab-route{display:grid;grid-template-columns:30px 1fr;gap:10px;align-items:start;min-height:76px;padding:14px;border:1px solid transparent;border-radius:var(--r-md);
+    background:transparent;color:#fff;text-align:left;cursor:pointer;transition:background .2s,border-color .2s,transform .2s var(--ease-out)}
+  .lab-route:hover{background:rgba(255,255,255,.035)}.lab-route:active{transform:scale(.99)}
+  .lab-route[aria-pressed="true"]{border-color:rgba(41,151,255,.44);background:rgba(41,151,255,.08)}
+  .lab-route-index{color:var(--primary-on-dark);font-size:11px;font-weight:600;letter-spacing:.08em}
+  .lab-route strong{display:block;font-size:14px;line-height:1.35}.lab-route small{display:block;margin-top:5px;color:var(--body-muted);font-size:11px;line-height:1.35}
+  .lab-stage{min-width:0;padding:28px;position:relative}
+  .lab-stage::before{content:"";position:absolute;left:28px;right:28px;top:0;height:1px;background:rgba(41,151,255,.22)}
+  .lab-stage-head{display:flex;align-items:flex-start;justify-content:space-between;gap:20px}
+  .lab-stage-kicker{color:var(--primary-on-dark);font-size:11px;font-weight:600;letter-spacing:.1em;text-transform:uppercase}
+  .lab-stage h3{max-width:630px;margin-top:8px;color:#fff;font-size:clamp(26px,3.2vw,38px);line-height:1.1;text-wrap:balance}
+  .lab-stage-lede{max-width:620px;margin-top:13px;color:var(--body-muted);font-size:15px;line-height:1.6}
+  .lab-step-count{flex:0 0 auto;color:#77777d;font:600 11px/1 ui-monospace,SFMono-Regular,Menlo,monospace}
+  .lab-step{margin-top:26px;animation:lab-step-in .42s var(--ease-out) both}
+  @keyframes lab-step-in{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:none}}
+  .lab-brief-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+  .lab-fact{padding:16px;border:1px solid rgba(255,255,255,.1);border-radius:var(--r-md);background:rgba(255,255,255,.025)}
+  .lab-fact span,.lab-evidence-state{display:block;color:var(--primary-on-dark);font-size:10px;font-weight:600;letter-spacing:.08em;text-transform:uppercase}
+  .lab-fact p{margin-top:8px;color:#e6e6ea;font-size:13px;line-height:1.55}
+  .lab-prompt{color:#fff;font-size:20px;font-weight:600;line-height:1.35}
+  .lab-choice-note{margin-top:10px;color:#8d8d93;font-size:12px;line-height:1.55}
+  .lab-choice-list{display:grid;gap:9px;margin-top:18px}
+  .lab-choice{position:relative;min-height:52px;padding:13px 45px 13px 15px;border:1px solid rgba(255,255,255,.12);border-radius:var(--r-md);
+    background:rgba(255,255,255,.02);color:#e8e8ed;font-size:14px;line-height:1.45;text-align:left;cursor:pointer}
+  .lab-choice::after{content:"";position:absolute;right:17px;top:50%;width:10px;height:10px;border:1px solid #6e6e73;border-radius:50%;transform:translateY(-50%)}
+  .lab-choice:hover{border-color:rgba(41,151,255,.5)}
+  .lab-choice[aria-pressed="true"]{border-color:var(--primary-on-dark);background:rgba(41,151,255,.09);color:#fff}
+  .lab-choice[aria-pressed="true"]::after{border-color:var(--primary-on-dark);background:var(--primary-on-dark);box-shadow:inset 0 0 0 3px #18181b}
+  .lab-actions{display:flex;align-items:center;gap:9px;flex-wrap:wrap;margin-top:22px}
+  .lab-button{display:inline-flex;align-items:center;justify-content:center;min-height:44px;padding:0 17px;border:1px solid rgba(255,255,255,.18);border-radius:var(--r-pill);
+    background:transparent;color:#fff;font-size:13px;font-weight:600;cursor:pointer}
+  .lab-button.primary{background:var(--primary);border-color:var(--primary)}.lab-button:disabled{opacity:.42;cursor:not-allowed}
+  .lab-reveal-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+  .lab-reveal-card{padding:18px;border:1px solid rgba(255,255,255,.11);border-radius:var(--r-md);background:rgba(255,255,255,.025)}
+  .lab-reveal-card.is-actual{border-color:rgba(41,151,255,.4);background:rgba(41,151,255,.065)}
+  .lab-reveal-card h4{color:var(--primary-on-dark);font-size:11px;letter-spacing:.08em;text-transform:uppercase}
+  .lab-reveal-card strong{display:block;margin-top:9px;color:#fff;font-size:17px;line-height:1.35}
+  .lab-reveal-card p{margin-top:8px;color:var(--body-muted);font-size:13px;line-height:1.6}
+  .lab-action-stack{display:grid;gap:9px;margin-top:16px}.lab-action-item{padding:14px 15px;border-left:2px solid rgba(41,151,255,.55);background:rgba(255,255,255,.025)}
+  .lab-action-item span{color:var(--primary-on-dark);font-size:10px;font-weight:600;letter-spacing:.08em;text-transform:uppercase}.lab-action-item p{margin-top:6px;color:#e7e7eb;font-size:13px;line-height:1.55}
+  .lab-note{margin-top:12px;color:#8d8d93;font-size:12px;line-height:1.55}
+  .lab-proof{padding:22px 18px;border-left:1px solid rgba(255,255,255,.08);background:rgba(255,255,255,.012)}
+  .lab-proof h3{color:#fff;font-size:17px}.lab-proof-copy{margin-top:7px;color:var(--body-muted);font-size:12px;line-height:1.5}
+  .lab-claim{margin-top:17px;padding:16px;border:1px solid rgba(41,151,255,.32);border-radius:var(--r-md);color:#fff;font-size:15px;font-weight:600;line-height:1.4}
+  .lab-proof-slots{display:grid;gap:8px;margin-top:14px}.lab-proof-slot{padding:12px;border:1px solid rgba(255,255,255,.09);border-radius:var(--r-sm)}
+  .lab-proof-slot span{display:block;color:#77777d;font-size:10px;font-weight:600;letter-spacing:.07em;text-transform:uppercase}.lab-proof-slot p{margin-top:5px;color:#d9d9dd;font-size:12px;line-height:1.45}
+  .lab-proof-slot.is-locked{opacity:.42}.lab-boundary{margin-top:14px;padding-top:14px;border-top:1px solid rgba(255,255,255,.08);color:#9c9ca2;font-size:12px;line-height:1.55}
+  .lab-evidence-list{display:grid;gap:9px}.lab-evidence{padding:15px 16px;border:1px solid rgba(255,255,255,.1);border-radius:var(--r-md);background:rgba(255,255,255,.02)}
+  .lab-evidence p{margin-top:7px;color:#e5e5e9;font-size:13px;line-height:1.55}
+  .lab-followups{margin-top:22px}.lab-followups h4{color:#fff;font-size:14px}.lab-followup-list{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}
+  .lab-followup{min-height:42px;padding:0 13px;border:1px solid rgba(255,255,255,.13);border-radius:var(--r-pill);background:transparent;color:#d7d7dc;font-size:12px;cursor:pointer}
+  .lab-followup:hover{border-color:rgba(41,151,255,.5);color:#fff}.lab-followup-answer{margin-top:12px;padding:14px 16px;border-left:2px solid var(--primary-on-dark);background:rgba(41,151,255,.055);color:#e7e7eb;font-size:13px;line-height:1.6}
+  .lab-library{padding:26px}.lab-library-head{display:flex;align-items:end;justify-content:space-between;gap:18px;margin-bottom:20px}
+  .lab-library-head h3{color:#fff;font-size:27px}.lab-library-head p{max-width:540px;color:var(--body-muted);font-size:14px;line-height:1.55}
+  .lab-library-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:11px}
+  .lab-library-card{min-height:180px;padding:18px;border:1px solid rgba(255,255,255,.1);border-radius:var(--r-md);background:rgba(255,255,255,.022);color:#fff;text-align:left;cursor:pointer}
+  .lab-library-card:hover{border-color:rgba(41,151,255,.48);background:rgba(41,151,255,.05)}
+  .lab-library-card span{display:block;color:var(--primary-on-dark);font-size:10px;font-weight:600;letter-spacing:.08em;text-transform:uppercase}
+  .lab-library-card strong{display:block;margin-top:12px;font-size:17px;line-height:1.35}.lab-library-card p{margin-top:9px;color:var(--body-muted);font-size:13px;line-height:1.55}
+  .lab-graph{padding:26px}.lab-graph-layout{display:grid;grid-template-columns:238px minmax(0,1fr);overflow:hidden;border:1px solid rgba(255,255,255,.1);border-radius:var(--r-md)}
+  .lab-graph-index{display:flex;flex-direction:column;gap:7px;max-height:650px;overflow:auto;padding:16px;border-right:1px solid rgba(255,255,255,.08)}
+  .lab-graph-index-title{padding:2px 4px 9px;color:#77777d;font-size:10px;font-weight:600;letter-spacing:.1em;text-transform:uppercase}
+  .lab-graph-project{min-height:54px;padding:11px 12px;border:1px solid transparent;border-radius:var(--r-sm);background:transparent;color:#d9d9de;font-size:12px;line-height:1.4;text-align:left;cursor:pointer}
+  .lab-graph-project:hover{background:rgba(255,255,255,.035);color:#fff}.lab-graph-project[aria-pressed="true"]{border-color:rgba(41,151,255,.44);background:rgba(41,151,255,.08);color:#fff}
+  .lab-graph-focus{min-width:0;padding:22px}.lab-graph-trail{display:flex;align-items:center;gap:6px;min-height:24px;overflow-x:auto;padding-bottom:2px;color:#77777d;font-size:11px;white-space:nowrap;scrollbar-width:none}
+  .lab-graph-trail::-webkit-scrollbar{display:none}.lab-graph-trail button{border:0;background:transparent;color:#9c9ca3;font:inherit;cursor:pointer}.lab-graph-trail button:hover{color:var(--primary-on-dark)}
+  .lab-graph-node{position:relative;margin-top:12px;overflow:hidden;padding:21px;border:1px solid rgba(41,151,255,.34);border-radius:var(--r-md);background:rgba(41,151,255,.055)}
+  .lab-graph-node::after{content:"";position:absolute;right:20px;top:20px;width:9px;height:9px;border:1px solid var(--primary-on-dark);border-radius:50%;box-shadow:0 0 0 6px rgba(41,151,255,.08)}
+  .lab-graph-node-type{color:var(--primary-on-dark);font-size:10px;font-weight:600;letter-spacing:.1em;text-transform:uppercase}.lab-graph-node h4{max-width:78%;margin-top:9px;color:#fff;font-size:24px;line-height:1.22}
+  .lab-graph-node-copy{max-width:720px;margin-top:10px;color:var(--body-muted);font-size:13px;line-height:1.6}.lab-graph-node-meta{display:flex;gap:7px;flex-wrap:wrap;margin-top:14px}
+  .lab-graph-node-meta span{padding:4px 8px;border:1px solid rgba(255,255,255,.1);border-radius:var(--r-pill);color:#b5b5ba;font-size:10px}.lab-graph-node .lab-button{margin-top:17px}
+  .lab-graph-groups{display:grid;gap:18px;margin-top:22px}.lab-graph-group h5{color:#a9a9af;font-size:11px;font-weight:600;letter-spacing:.06em}.lab-graph-neighbors{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;margin-top:9px}
+  .lab-graph-neighbor{position:relative;min-height:94px;padding:14px 15px 14px 17px;border:1px solid rgba(255,255,255,.09);border-radius:var(--r-sm);background:rgba(255,255,255,.02);color:#fff;text-align:left;cursor:pointer}
+  .lab-graph-neighbor::before{content:"";position:absolute;left:0;top:14px;bottom:14px;width:2px;background:rgba(41,151,255,.48)}.lab-graph-neighbor:hover{border-color:rgba(41,151,255,.45);background:rgba(41,151,255,.045)}
+  .lab-graph-neighbor span{display:block;color:var(--primary-on-dark);font-size:9px;font-weight:600;letter-spacing:.08em;text-transform:uppercase}.lab-graph-neighbor strong{display:block;margin-top:6px;font-size:14px;line-height:1.35}.lab-graph-neighbor p{margin-top:5px;color:#8f8f95;font-size:11px;line-height:1.45}
+  .lab-graph-empty{padding:18px;border:1px dashed rgba(255,255,255,.12);border-radius:var(--r-sm);color:#8f8f95;font-size:13px;line-height:1.55}
+  .lab-error{padding:28px;color:#fff}.lab-error p{margin-top:10px;color:var(--body-muted)}
+  @media(max-width:980px){
+    .lab-replay{grid-template-columns:210px minmax(0,1fr)}.lab-proof{grid-column:1/-1;border-left:0;border-top:1px solid rgba(255,255,255,.08)}
+    .lab-proof-slots{grid-template-columns:repeat(3,minmax(0,1fr))}.lab-library-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.lab-graph-layout{grid-template-columns:190px minmax(0,1fr)}}
+  @media(max-width:720px){
+    .lab-topbar{align-items:flex-start;flex-direction:column}.lab-view-tabs{width:100%;display:grid;grid-template-columns:repeat(4,1fr)}.lab-view-tab{width:100%;padding-inline:7px}
+    .lab-replay{display:block;min-height:0}.lab-route-list{border-right:0;border-bottom:1px solid rgba(255,255,255,.08)}
+    .lab-stage{padding:22px 18px;scroll-margin-top:52px}.lab-stage::before{left:18px;right:18px}.lab-stage-head{display:block}.lab-step-count{margin-top:10px}
+    .lab-brief-grid,.lab-reveal-grid,.lab-proof-slots,.lab-library-grid{grid-template-columns:1fr}.lab-proof{padding:22px 18px}.lab-library,.lab-graph{padding:22px 18px}.lab-library-head{display:block}.lab-library-head p{margin-top:8px}
+    .lab-graph-layout{display:block}.lab-graph-index{flex-direction:row;max-height:none;overflow-x:auto;border-right:0;border-bottom:1px solid rgba(255,255,255,.08);scroll-snap-type:x proximity}.lab-graph-index-title{display:none}.lab-graph-project{flex:0 0 190px;scroll-snap-align:start}.lab-graph-focus{padding:18px}.lab-graph-neighbors{grid-template-columns:1fr}}
 
   /* 能力矩阵 */
   .cap-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,280px),1fr));gap:20px}
@@ -434,16 +633,53 @@
   @media(max-width:480px){.nav a{padding:0 7px;font-size:11px}}
 </style>
 </head>
-<body>
+<body data-stats-endpoint="https://workme-agent.pages.dev" data-local-stats-endpoint="http://localhost:8787">
   <script>
     // 防误开：template.html 是构建源，若直接预览则跳到已生成的正式页面。
     if(document.title.includes(String.fromCharCode(123,123)))location.replace('../site/index.html');
   </script>
+  <div class="intro" id="intro" data-view="welcome" role="dialog" aria-modal="true" aria-hidden="true" aria-labelledby="introTitle" inert>
+    <button class="intro-skip" id="introSkip" type="button">跳过，查看经典简历 →</button>
+    <div class="intro-frame">
+      <div class="intro-orbit" aria-hidden="true"><i></i><i></i><i></i></div>
+      <div class="intro-boot" id="introBoot" aria-hidden="true">
+        <div class="intro-boot-label">WORKME / CONTEXT BOOT</div>
+        <div class="intro-boot-row"><span>读取事实源</span><span>READY</span></div>
+        <div class="intro-boot-row"><span>连接项目与证据</span><span>39 EDGES</span></div>
+        <div class="intro-boot-row"><span>建立当前上下文</span><span>ONLINE</span></div>
+      </div>
+      <div class="intro-content">
+        <section class="intro-view intro-welcome" aria-labelledby="introTitle">
+          <img class="intro-logo" src="assets/logo.png" alt="SLin个人标识" width="64" height="64">
+          <div class="intro-kicker">WorkMe · Context online</div>
+          <h1 id="introTitle">想用哪种方式认识我？</h1>
+          <p class="intro-copy">按顺序读完一份简历，或者进入几个真实项目情境，亲自探索判断、动作与证据之间的关系。</p>
+          <p class="intro-visit" id="introVisit" aria-live="polite" aria-atomic="true">正在读取到访记录…</p>
+          <div class="intro-choice-grid">
+            <button class="intro-choice" id="introClassic" type="button">
+              <span class="intro-choice-kicker">Classic · 约 3 分钟</span>
+              <strong>查看经典简历</strong>
+              <small>按章节快速浏览定位、工作方式、项目、能力与经历。</small>
+            </button>
+            <button class="intro-choice primary" id="introExplore" type="button">
+              <span class="intro-choice-kicker">Interactive · Decision Lab</span>
+              <strong>探索交互式简历</strong>
+              <small>从真实项目事实出发，做出你的访客假设，再核对我的思考、关联动作和事实边界。</small>
+            </button>
+          </div>
+          <div class="intro-system-meta" aria-label="WorkMe 图谱规模">
+            <span>31 个知识节点</span><span>39 条真实关系</span><span>事实源自动更新</span>
+          </div>
+        </section>
+      </div>
+    </div>
+  </div>
+
   <a class="skip-link" href="#main">跳到主要内容</a>
   <div class="progress" id="progress" aria-hidden="true"></div>
   <nav class="nav" aria-label="页面章节">
     <a href="#top">概览</a><a href="#me">我是谁</a><a href="#traits">工作方式</a>
-    <a href="#work">项目</a><a href="#cap">能力与经历</a><a href="#usage">AI 协作</a>
+    <a href="#work">项目</a><a href="#decision-lab">决策实验室</a><a href="#cap">能力与经历</a><a href="#usage">AI 协作</a>
   </nav>
 
   <main id="main" tabindex="-1">
@@ -455,6 +691,9 @@
       <p class="oneliner">把复杂问题做成可用、可验证的 <span class="nowrap">AI 产品</span>。</p>
       <p class="tagline">安全研究出身，能把产品判断落到工程实现和数据验证。</p>
       <div class="meta"><a class="pill pill-primary" href="mailto:shilin@alumni.pku.edu.cn">shilin@alumni.pku.edu.cn</a><a class="pill" href="https://github.com/SLin-code" target="_blank" rel="noopener">GitHub</a></div>
+      <button class="hero-visit" id="heroVisit" type="button" aria-label="切换经典简历与探索方式" hidden>
+        <span class="hero-visit-dot" aria-hidden="true"></span><span id="heroVisitText">WORKME ONLINE</span>
+      </button>
     </div>
     <div class="scroll-hint">向下滚动 ↓</div>
   </header>
@@ -477,10 +716,85 @@
     </div>
   </section>
 
-  <section class="tile tile-canvas" id="work">
+  <section class="tile tile-canvas" id="work" tabindex="-1">
     <div class="inner">
       <div class="sec-head reveal"><span class="kicker">Selected work</span><h2>代表项目</h2></div>
-      <div><div class="chips" role="group" aria-label="筛选项目"><button class="chip active" type="button" data-tag="all" aria-pressed="true">全部</button><button class="chip" type="button" data-tag="AI产品" aria-pressed="false">AI 产品</button><button class="chip" type="button" data-tag="增长" aria-pressed="false">增长</button><button class="chip" type="button" data-tag="评测" aria-pressed="false">评测</button><button class="chip" type="button" data-tag="安全" aria-pressed="false">安全</button><button class="chip" type="button" data-tag="工程" aria-pressed="false">工程</button></div><div class="proj-grid"><article class="proj is-representative" data-tags="AI产品 产品 从0到1" style="--i:0"><div class="proj-tags"><span class="ptag">AI 产品</span><span class="ptag">产品</span><span class="ptag">从 0 到 1</span></div><h3 class="proj-title" id="project-proj-meyo-community-title">觅游（Meyo）<span class="nowrap">Agent 社区</span></h3><div class="proj-meta"><span class="proj-position">代表性主项目</span><span class="proj-meta-detail">产品负责人 · 2026 — 至今</span></div><div class="proj-highlight">主链路 <span class="nowrap">4 轮迭代</span> · <span class="nowrap">2 个</span>衍生专项 · 数据看板 <span class="nowrap">1 个月</span>交付</div><div class="proj-sum">负责 Meyo 社区<span class="nowrap">从 0 到 1</span>，并从主线延展出世界杯活动与 <span class="nowrap">Skill Finder</span> 两个专项。</div><div class="proj-details" id="project-proj-meyo-community" aria-hidden="true"><div class="proj-details-inner"><ul class="proj-points"><li class="has-label"><span class="proj-point-label">主线</span><span class="proj-point-copy">完成入驻、Agent 活跃状态和推荐的 <span class="nowrap">4 轮迭代</span>，缩短上手路径，并减少无效推送。</span></li><li class="has-label"><span class="proj-point-label">专项</span><span class="proj-point-copy">从社区主线延展出世界杯预测活动与 <span class="nowrap">Skill Finder</span>，分别承担阶段性活跃验证与长期增长探索。</span></li><li class="has-label"><span class="proj-point-label">基础设施</span><span class="proj-point-copy">定义核心指标与埋点，<span class="nowrap">1 个月</span>交付首版数据看板；同时负责安全合规、私聊和组队，上线前完成接口防护与隐私规则整改。</span></li></ul></div></div><button class="proj-toggle" type="button" aria-expanded="false" aria-controls="project-proj-meyo-community" aria-labelledby="project-proj-meyo-community-title project-proj-meyo-community-toggle-label"><span class="proj-toggle-label" id="project-proj-meyo-community-toggle-label">展开</span><span class="proj-arrow" aria-hidden="true">↓</span></button></article><article class="proj" data-tags="AI产品 增长 运营" style="--i:1"><div class="proj-tags"><span class="ptag">AI 产品</span><span class="ptag">增长</span><span class="ptag">运营</span></div><h3 class="proj-title" id="project-proj-worldcup-agent-title">世界杯 Agent 预测活动</h3><div class="proj-meta"><span class="proj-position">Meyo 衍生专项</span><span class="proj-meta-detail">产品与全栈研发 · 2026</span></div><div class="proj-highlight">活跃率 <span class="nowrap">3.8%</span>→<span class="nowrap">7.1%</span> · 新用户次日留存 <span class="nowrap">39.1%</span>→<span class="nowrap">53.8%</span></div><div class="proj-sum">Meyo 社区衍生的活动专项，以 Agent 调用 Skill 为核心机制，<span class="nowrap">1 周</span>完成从设计到全栈上线。</div><div class="proj-details" id="project-proj-worldcup-agent" aria-hidden="true"><div class="proj-details-inner"><ul class="proj-points"><li class="has-label"><span class="proj-point-label">机制</span><span class="proj-point-copy">用户发出指令后，由 Agent 调用 Skill 完成投注；独立交付 <span class="nowrap">4 个</span>页面、投注/开奖/积分引擎和预测 Skill。</span></li><li class="has-label"><span class="proj-point-label">数据</span><span class="proj-point-copy">活动期间，活跃率从 <span class="nowrap">3.8%</span> 升至 <span class="nowrap">7.1%</span>，新用户次日留存从 <span class="nowrap">39.1%</span> 升至 <span class="nowrap">53.8%</span>。</span></li><li class="has-label"><span class="proj-point-label">延续</span><span class="proj-point-copy">超过 <span class="nowrap">77%</span> 的活动用户继续进入主站核心模块，而不是只停留在活动页。</span></li></ul></div></div><button class="proj-toggle" type="button" aria-expanded="false" aria-controls="project-proj-worldcup-agent" aria-labelledby="project-proj-worldcup-agent-title project-proj-worldcup-agent-toggle-label"><span class="proj-toggle-label" id="project-proj-worldcup-agent-toggle-label">展开</span><span class="proj-arrow" aria-hidden="true">↓</span></button></article><article class="proj" data-tags="AI产品 增长 SEO" style="--i:2"><div class="proj-tags"><span class="ptag">AI 产品</span><span class="ptag">增长</span><span class="ptag">SEO</span></div><h3 class="proj-title" id="project-proj-skill-finder-growth-title"><span class="nowrap">Skill Finder</span> 用户增长</h3><div class="proj-meta"><span class="proj-position">Meyo 衍生专项</span><span class="proj-meta-detail">用户增长负责人 · 2026 — 至今</span></div><div class="proj-highlight"><span class="nowrap">Landing UV</span> 周环比 <span class="nowrap">+67.7%</span> · <span class="nowrap">5 个</span>场景页上线</div><div class="proj-sum">Meyo 社区衍生的增长专项，搭建内容触达、场景页承接和渠道归因链路。</div><div class="proj-details" id="project-proj-skill-finder-growth" aria-hidden="true"><div class="proj-details-inner"><ul class="proj-points"><li class="has-label"><span class="proj-point-label">增长</span><span class="proj-point-copy"><span class="nowrap">Landing UV</span> 从 433 增至 726；社群分享贡献 <span class="nowrap">26.5%</span> 的 UV，是最大的可归因渠道。</span></li><li class="has-label"><span class="proj-point-label">系统</span><span class="proj-point-copy">上线 <span class="nowrap">4 个</span>职业场景页和 <span class="nowrap">1 个</span> Agent 自主找 Skill 页面，并把 pSEO 从手写 HTML 重构为 <span class="nowrap">SSR + JSON</span>；旧发布方式继续保留，新架构效果待线上验证。</span></li><li class="has-label"><span class="proj-point-label">判断</span><span class="proj-point-copy">流量增长没有带来稳定留存；下一步通过用户访谈定位流失原因，并检查召回质量。</span></li></ul></div></div><button class="proj-toggle" type="button" aria-expanded="false" aria-controls="project-proj-skill-finder-growth" aria-labelledby="project-proj-skill-finder-growth-title project-proj-skill-finder-growth-toggle-label"><span class="proj-toggle-label" id="project-proj-skill-finder-growth-toggle-label">展开</span><span class="proj-arrow" aria-hidden="true">↓</span></button></article><article class="proj" data-tags="AI产品 评测 方法论" style="--i:3"><div class="proj-tags"><span class="ptag">AI 产品</span><span class="ptag">评测</span><span class="ptag">方法论</span></div><h3 class="proj-title" id="project-proj-skill-eval-title">Skill 评测与召回方案</h3><div class="proj-meta"><span class="proj-meta-detail">产品设计 · 2026 — 至今</span></div><div class="proj-highlight">三层测评设计 · 相对基线增益 · 待落地验证</div><div class="proj-sum">为多 Skill 召回建立选择依据，完成三层测评与相对基线增益方案设计。</div><div class="proj-details" id="project-proj-skill-eval" aria-hidden="true"><div class="proj-details-inner"><ul class="proj-points"><li class="has-label"><span class="proj-point-label">方案</span><span class="proj-point-copy">设计静态过滤、单 Skill 达标和同类横评三层结构，同一份执行轨迹同时用于达标判断和横评。</span></li><li class="has-label"><span class="proj-point-label">判断</span><span class="proj-point-copy">不按绝对质量分直接排名，避免通用 Skill 长期压过更匹配的专用 Skill。</span></li><li class="has-label"><span class="proj-point-label">进度</span><span class="proj-point-copy">方案与设计文档已完成；<span class="nowrap">Skill × 场景增益表</span>及召回效果仍待实现和验证。</span></li></ul></div></div><button class="proj-toggle" type="button" aria-expanded="false" aria-controls="project-proj-skill-eval" aria-labelledby="project-proj-skill-eval-title project-proj-skill-eval-toggle-label"><span class="proj-toggle-label" id="project-proj-skill-eval-toggle-label">展开</span><span class="proj-arrow" aria-hidden="true">↓</span></button></article><article class="proj" data-tags="AI产品 评测" style="--i:4"><div class="proj-tags"><span class="ptag">AI 产品</span><span class="ptag">评测</span></div><h3 class="proj-title" id="project-proj-agent-gsb-title">社区 Agent 回答质量盲评</h3><div class="proj-meta"><span class="proj-meta-detail">质量评估负责人 · 2026 — 至今</span></div><div class="proj-highlight"><span class="nowrap">10 道</span>真实问题 · 两轮独立盲评 · 形成优先修复清单</div><div class="proj-sum">用 <span class="nowrap">10 道</span>真实用户问题完成两轮独立盲评，定位技术类回答的交付短板。</div><div class="proj-details" id="project-proj-agent-gsb" aria-hidden="true"><div class="proj-details-inner"><ul class="proj-points"><li class="has-label"><span class="proj-point-label">方法</span><span class="proj-point-copy">逐题做 Good、Same、Bad 判断，并分别查看方法论类与技术类回答的表现。</span></li><li class="has-label"><span class="proj-point-label">发现</span><span class="proj-point-copy">方法论类回答整体较好，技术类回答的可执行代码和脚本不够完整。</span></li><li class="has-label"><span class="proj-point-label">推进</span><span class="proj-point-copy">将低分案例整理成代码诊断文档，推动技术类完整度进入优先修复项；修复效果仍在跟进。</span></li></ul></div></div><button class="proj-toggle" type="button" aria-expanded="false" aria-controls="project-proj-agent-gsb" aria-labelledby="project-proj-agent-gsb-title project-proj-agent-gsb-toggle-label"><span class="proj-toggle-label" id="project-proj-agent-gsb-toggle-label">展开</span><span class="proj-arrow" aria-hidden="true">↓</span></button></article><article class="proj" data-tags="AI×安全 安全" style="--i:5"><div class="proj-tags"><span class="ptag">AI 与安全</span><span class="ptag">安全</span></div><h3 class="proj-title" id="project-proj-llm-reverse-title">大模型辅助逆向分析</h3><div class="proj-meta"><span class="proj-meta-detail">安全工程师 · 2024 — 2026</span></div><div class="proj-highlight">函数定位与版本适配由纯人工转为 AI 辅助</div><div class="proj-sum">将 LLM 引入逆向分析，辅助定位关键函数，并把稳定步骤封装成版本适配脚本。</div><div class="proj-details" id="project-proj-llm-reverse" aria-hidden="true"><div class="proj-details-inner"><ul class="proj-points"><li class="has-label"><span class="proj-point-label">应用</span><span class="proj-point-copy">用 LLM 分析二进制库并定位关键函数偏移。</span></li><li class="has-label"><span class="proj-point-label">脚本</span><span class="proj-point-copy">将稳定的分析步骤封装起来，减少不同版本中的重复操作。</span></li></ul></div></div><button class="proj-toggle" type="button" aria-expanded="false" aria-controls="project-proj-llm-reverse" aria-labelledby="project-proj-llm-reverse-title project-proj-llm-reverse-toggle-label"><span class="proj-toggle-label" id="project-proj-llm-reverse-toggle-label">展开</span><span class="proj-arrow" aria-hidden="true">↓</span></button></article><article class="proj" data-tags="安全 工程" style="--i:6"><div class="proj-tags"><span class="ptag">安全</span><span class="ptag">工程</span></div><h3 class="proj-title" id="project-proj-anti-riskctrl-title">多端数据采集与稳定性体系</h3><div class="proj-meta"><span class="proj-meta-detail">产品与研发 · 2024 — 2026</span></div><div class="proj-highlight">新业务接入成本<span class="nowrap">降低超过 80%</span></div><div class="proj-sum">将分散在多条业务线的数据采集逻辑收敛为统一框架，同时改善接入效率和稳定性。</div><div class="proj-details" id="project-proj-anti-riskctrl" aria-hidden="true"><div class="proj-details-inner"><ul class="proj-points"><li class="has-label"><span class="proj-point-label">架构</span><span class="proj-point-copy">抽象多条业务线的共性，支持快速切换目标，避免为每个业务重复开发。</span></li><li class="has-label"><span class="proj-point-label">稳定性</span><span class="proj-point-copy">统一执行策略和异常处理，减少采集失败和误拦截。</span></li></ul></div></div><button class="proj-toggle" type="button" aria-expanded="false" aria-controls="project-proj-anti-riskctrl" aria-labelledby="project-proj-anti-riskctrl-title project-proj-anti-riskctrl-toggle-label"><span class="proj-toggle-label" id="project-proj-anti-riskctrl-toggle-label">展开</span><span class="proj-arrow" aria-hidden="true">↓</span></button></article><article class="proj" data-tags="AI产品 产品" style="--i:7"><div class="proj-tags"><span class="ptag">AI 产品</span><span class="ptag">产品</span></div><h3 class="proj-title" id="project-proj-data-lake-title"><span class="nowrap">AI 数据产品</span> · 数据湖与智慧医疗</h3><div class="proj-meta"><span class="proj-meta-detail">产品负责人 · 创业期 · 2023 — 2025</span></div><div class="proj-highlight">吞吐 <span class="nowrap">+50%</span> · 准确率 <span class="nowrap">+30%</span> · 覆盖 <span class="nowrap">13.5 万人</span></div><div class="proj-sum">重构数据湖并交付医疗 AI 应用，覆盖模型选型、数据流程与产品上线。</div><div class="proj-details" id="project-proj-data-lake" aria-hidden="true"><div class="proj-details-inner"><ul class="proj-points"><li class="has-label"><span class="proj-point-label">重构</span><span class="proj-point-copy">完成模型选型和标注体系建设，重做从数据采集到应用的全流程。</span></li><li class="has-label"><span class="proj-point-label">结果</span><span class="proj-point-copy">数据处理吞吐提升 <span class="nowrap">50%</span>、准确率提升超过 <span class="nowrap">30%</span>。</span></li><li class="has-label"><span class="proj-point-label">应用</span><span class="proj-point-copy">交付智慧医疗数据系统和慢病问答助手，前者覆盖 <span class="nowrap">13.5 万人</span>。</span></li></ul></div></div><button class="proj-toggle" type="button" aria-expanded="false" aria-controls="project-proj-data-lake" aria-labelledby="project-proj-data-lake-title project-proj-data-lake-toggle-label"><span class="proj-toggle-label" id="project-proj-data-lake-toggle-label">展开</span><span class="proj-arrow" aria-hidden="true">↓</span></button></article></div></div>
+      <div><div class="chips" role="group" aria-label="筛选项目"><button class="chip active" type="button" data-tag="all" aria-pressed="true">全部</button><button class="chip" type="button" data-tag="AI产品" aria-pressed="false">AI 产品</button><button class="chip" type="button" data-tag="增长" aria-pressed="false">增长</button><button class="chip" type="button" data-tag="评测" aria-pressed="false">评测</button><button class="chip" type="button" data-tag="安全" aria-pressed="false">安全</button><button class="chip" type="button" data-tag="工程" aria-pressed="false">工程</button></div><div class="proj-grid"><article class="proj is-representative" id="project-g-85f2a29f8cd62a47-card" data-project-id="g-85f2a29f8cd62a47" data-tags="AI产品 产品 从0到1" style="--i:0"><div class="proj-tags"><span class="ptag">AI 产品</span><span class="ptag">产品</span><span class="ptag">从 0 到 1</span></div><h3 class="proj-title" id="project-g-85f2a29f8cd62a47-title" tabindex="-1">觅游（Meyo）<span class="nowrap">Agent 社区</span></h3><div class="proj-meta"><span class="proj-position">代表性主项目</span><span class="proj-meta-detail">产品负责人 · 2026 — 至今</span></div><div class="proj-highlight">主链路 <span class="nowrap">4 轮迭代</span> · <span class="nowrap">2 个</span>衍生专项 · 数据看板 <span class="nowrap">1 个月</span>交付</div><div class="proj-sum">负责 Meyo 社区<span class="nowrap">从 0 到 1</span>，并从主线延展出世界杯活动与 <span class="nowrap">Skill Finder</span> 两个专项。</div><div class="proj-details" id="project-g-85f2a29f8cd62a47" aria-hidden="true"><div class="proj-details-inner"><ul class="proj-points"><li class="has-label"><span class="proj-point-label">主线</span><span class="proj-point-copy">完成入驻、Agent 活跃状态和推荐的 <span class="nowrap">4 轮迭代</span>，缩短上手路径，并减少无效推送。</span></li><li class="has-label"><span class="proj-point-label">专项</span><span class="proj-point-copy">从社区主线延展出世界杯预测活动与 <span class="nowrap">Skill Finder</span>，分别承担阶段性活跃验证与长期增长探索。</span></li><li class="has-label"><span class="proj-point-label">基础设施</span><span class="proj-point-copy">定义核心指标与埋点，<span class="nowrap">1 个月</span>交付首版数据看板；同时负责安全合规、私聊和组队，上线前完成接口防护与隐私规则整改。</span></li></ul></div></div><button class="proj-toggle" type="button" aria-expanded="false" aria-controls="project-g-85f2a29f8cd62a47" aria-labelledby="project-g-85f2a29f8cd62a47-title project-g-85f2a29f8cd62a47-toggle-label"><span class="proj-toggle-label" id="project-g-85f2a29f8cd62a47-toggle-label">展开</span><span class="proj-arrow" aria-hidden="true">↓</span></button></article><article class="proj" id="project-g-3f0a39f7b8f16c22-card" data-project-id="g-3f0a39f7b8f16c22" data-tags="AI产品 增长 运营" style="--i:1"><div class="proj-tags"><span class="ptag">AI 产品</span><span class="ptag">增长</span><span class="ptag">运营</span></div><h3 class="proj-title" id="project-g-3f0a39f7b8f16c22-title" tabindex="-1">世界杯 Agent 预测活动</h3><div class="proj-meta"><span class="proj-position">Meyo 衍生专项</span><span class="proj-meta-detail">产品与全栈研发 · 2026</span></div><div class="proj-highlight">活跃率 <span class="nowrap">3.8%</span>→<span class="nowrap">7.1%</span> · 新用户次日留存 <span class="nowrap">39.1%</span>→<span class="nowrap">53.8%</span></div><div class="proj-sum">Meyo 社区衍生的活动专项，以 Agent 调用 Skill 为核心机制，<span class="nowrap">1 周</span>完成从设计到全栈上线。</div><div class="proj-details" id="project-g-3f0a39f7b8f16c22" aria-hidden="true"><div class="proj-details-inner"><ul class="proj-points"><li class="has-label"><span class="proj-point-label">机制</span><span class="proj-point-copy">用户发出指令后，由 Agent 调用 Skill 完成投注；独立交付 <span class="nowrap">4 个</span>页面、投注/开奖/积分引擎和预测 Skill。</span></li><li class="has-label"><span class="proj-point-label">数据</span><span class="proj-point-copy">活动期间，活跃率从 <span class="nowrap">3.8%</span> 升至 <span class="nowrap">7.1%</span>，新用户次日留存从 <span class="nowrap">39.1%</span> 升至 <span class="nowrap">53.8%</span>。</span></li><li class="has-label"><span class="proj-point-label">延续</span><span class="proj-point-copy">超过 <span class="nowrap">77%</span> 的活动用户继续进入主站核心模块，而不是只停留在活动页。</span></li></ul></div></div><button class="proj-toggle" type="button" aria-expanded="false" aria-controls="project-g-3f0a39f7b8f16c22" aria-labelledby="project-g-3f0a39f7b8f16c22-title project-g-3f0a39f7b8f16c22-toggle-label"><span class="proj-toggle-label" id="project-g-3f0a39f7b8f16c22-toggle-label">展开</span><span class="proj-arrow" aria-hidden="true">↓</span></button></article><article class="proj" id="project-g-a38bc2d5ce0662ba-card" data-project-id="g-a38bc2d5ce0662ba" data-tags="AI产品 增长 SEO" style="--i:2"><div class="proj-tags"><span class="ptag">AI 产品</span><span class="ptag">增长</span><span class="ptag">SEO</span></div><h3 class="proj-title" id="project-g-a38bc2d5ce0662ba-title" tabindex="-1"><span class="nowrap">Skill Finder</span> 用户增长</h3><div class="proj-meta"><span class="proj-position">Meyo 衍生专项</span><span class="proj-meta-detail">用户增长负责人 · 2026 — 至今</span></div><div class="proj-highlight"><span class="nowrap">Landing UV</span> 周环比 <span class="nowrap">+67.7%</span> · <span class="nowrap">5 个</span>场景页上线</div><div class="proj-sum">Meyo 社区衍生的增长专项，搭建内容触达、场景页承接和渠道归因链路。</div><div class="proj-details" id="project-g-a38bc2d5ce0662ba" aria-hidden="true"><div class="proj-details-inner"><ul class="proj-points"><li class="has-label"><span class="proj-point-label">增长</span><span class="proj-point-copy"><span class="nowrap">Landing UV</span> 从 433 增至 726；社群分享贡献 <span class="nowrap">26.5%</span> 的 UV，是最大的可归因渠道。</span></li><li class="has-label"><span class="proj-point-label">系统</span><span class="proj-point-copy">上线 <span class="nowrap">4 个</span>职业场景页和 <span class="nowrap">1 个</span> Agent 自主找 Skill 页面，并把 pSEO 从手写 HTML 重构为 <span class="nowrap">SSR + JSON</span>；旧发布方式继续保留，新架构效果待线上验证。</span></li><li class="has-label"><span class="proj-point-label">判断</span><span class="proj-point-copy">流量增长没有带来稳定留存；下一步通过用户访谈定位流失原因，并检查召回质量。</span></li></ul></div></div><button class="proj-toggle" type="button" aria-expanded="false" aria-controls="project-g-a38bc2d5ce0662ba" aria-labelledby="project-g-a38bc2d5ce0662ba-title project-g-a38bc2d5ce0662ba-toggle-label"><span class="proj-toggle-label" id="project-g-a38bc2d5ce0662ba-toggle-label">展开</span><span class="proj-arrow" aria-hidden="true">↓</span></button></article><article class="proj" id="project-g-7db1938bae0e07eb-card" data-project-id="g-7db1938bae0e07eb" data-tags="AI产品 评测 方法论" style="--i:3"><div class="proj-tags"><span class="ptag">AI 产品</span><span class="ptag">评测</span><span class="ptag">方法论</span></div><h3 class="proj-title" id="project-g-7db1938bae0e07eb-title" tabindex="-1">Skill 评测与召回方案</h3><div class="proj-meta"><span class="proj-meta-detail">产品设计 · 2026 — 至今</span></div><div class="proj-highlight">三层测评设计 · 相对基线增益 · 待落地验证</div><div class="proj-sum">为多 Skill 召回建立选择依据，完成三层测评与相对基线增益方案设计。</div><div class="proj-details" id="project-g-7db1938bae0e07eb" aria-hidden="true"><div class="proj-details-inner"><ul class="proj-points"><li class="has-label"><span class="proj-point-label">方案</span><span class="proj-point-copy">设计静态过滤、单 Skill 达标和同类横评三层结构，同一份执行轨迹同时用于达标判断和横评。</span></li><li class="has-label"><span class="proj-point-label">判断</span><span class="proj-point-copy">不按绝对质量分直接排名，避免通用 Skill 长期压过更匹配的专用 Skill。</span></li><li class="has-label"><span class="proj-point-label">进度</span><span class="proj-point-copy">方案与设计文档已完成；<span class="nowrap">Skill × 场景增益表</span>及召回效果仍待实现和验证。</span></li></ul></div></div><button class="proj-toggle" type="button" aria-expanded="false" aria-controls="project-g-7db1938bae0e07eb" aria-labelledby="project-g-7db1938bae0e07eb-title project-g-7db1938bae0e07eb-toggle-label"><span class="proj-toggle-label" id="project-g-7db1938bae0e07eb-toggle-label">展开</span><span class="proj-arrow" aria-hidden="true">↓</span></button></article><article class="proj" id="project-g-4e616671cc97487d-card" data-project-id="g-4e616671cc97487d" data-tags="AI产品 评测" style="--i:4"><div class="proj-tags"><span class="ptag">AI 产品</span><span class="ptag">评测</span></div><h3 class="proj-title" id="project-g-4e616671cc97487d-title" tabindex="-1">社区 Agent 回答质量盲评</h3><div class="proj-meta"><span class="proj-meta-detail">质量评估负责人 · 2026 — 至今</span></div><div class="proj-highlight"><span class="nowrap">10 道</span>真实问题 · 两轮独立盲评 · 形成优先修复清单</div><div class="proj-sum">用 <span class="nowrap">10 道</span>真实用户问题完成两轮独立盲评，定位技术类回答的交付短板。</div><div class="proj-details" id="project-g-4e616671cc97487d" aria-hidden="true"><div class="proj-details-inner"><ul class="proj-points"><li class="has-label"><span class="proj-point-label">方法</span><span class="proj-point-copy">逐题做 Good、Same、Bad 判断，并分别查看方法论类与技术类回答的表现。</span></li><li class="has-label"><span class="proj-point-label">发现</span><span class="proj-point-copy">方法论类回答整体较好，技术类回答的可执行代码和脚本不够完整。</span></li><li class="has-label"><span class="proj-point-label">推进</span><span class="proj-point-copy">将低分案例整理成代码诊断文档，推动技术类完整度进入优先修复项；修复效果仍在跟进。</span></li></ul></div></div><button class="proj-toggle" type="button" aria-expanded="false" aria-controls="project-g-4e616671cc97487d" aria-labelledby="project-g-4e616671cc97487d-title project-g-4e616671cc97487d-toggle-label"><span class="proj-toggle-label" id="project-g-4e616671cc97487d-toggle-label">展开</span><span class="proj-arrow" aria-hidden="true">↓</span></button></article><article class="proj" id="project-g-3404b9af102384ee-card" data-project-id="g-3404b9af102384ee" data-tags="AI×安全 安全" style="--i:5"><div class="proj-tags"><span class="ptag">AI 与安全</span><span class="ptag">安全</span></div><h3 class="proj-title" id="project-g-3404b9af102384ee-title" tabindex="-1">大模型辅助逆向分析</h3><div class="proj-meta"><span class="proj-meta-detail">安全工程师 · 2024 — 2026</span></div><div class="proj-highlight">函数定位与版本适配由纯人工转为 AI 辅助</div><div class="proj-sum">将 LLM 引入逆向分析，辅助定位关键函数，并把稳定步骤封装成版本适配脚本。</div><div class="proj-details" id="project-g-3404b9af102384ee" aria-hidden="true"><div class="proj-details-inner"><ul class="proj-points"><li class="has-label"><span class="proj-point-label">应用</span><span class="proj-point-copy">用 LLM 分析二进制库并定位关键函数偏移。</span></li><li class="has-label"><span class="proj-point-label">脚本</span><span class="proj-point-copy">将稳定的分析步骤封装起来，减少不同版本中的重复操作。</span></li></ul></div></div><button class="proj-toggle" type="button" aria-expanded="false" aria-controls="project-g-3404b9af102384ee" aria-labelledby="project-g-3404b9af102384ee-title project-g-3404b9af102384ee-toggle-label"><span class="proj-toggle-label" id="project-g-3404b9af102384ee-toggle-label">展开</span><span class="proj-arrow" aria-hidden="true">↓</span></button></article><article class="proj" id="project-g-b66a0ec3bc4930ac-card" data-project-id="g-b66a0ec3bc4930ac" data-tags="安全 工程" style="--i:6"><div class="proj-tags"><span class="ptag">安全</span><span class="ptag">工程</span></div><h3 class="proj-title" id="project-g-b66a0ec3bc4930ac-title" tabindex="-1">多端数据采集与稳定性体系</h3><div class="proj-meta"><span class="proj-meta-detail">产品与研发 · 2024 — 2026</span></div><div class="proj-highlight">新业务接入成本<span class="nowrap">降低超过 80%</span></div><div class="proj-sum">将分散在多条业务线的数据采集逻辑收敛为统一框架，同时改善接入效率和稳定性。</div><div class="proj-details" id="project-g-b66a0ec3bc4930ac" aria-hidden="true"><div class="proj-details-inner"><ul class="proj-points"><li class="has-label"><span class="proj-point-label">架构</span><span class="proj-point-copy">抽象多条业务线的共性，支持快速切换目标，避免为每个业务重复开发。</span></li><li class="has-label"><span class="proj-point-label">稳定性</span><span class="proj-point-copy">统一执行策略和异常处理，减少采集失败和误拦截。</span></li></ul></div></div><button class="proj-toggle" type="button" aria-expanded="false" aria-controls="project-g-b66a0ec3bc4930ac" aria-labelledby="project-g-b66a0ec3bc4930ac-title project-g-b66a0ec3bc4930ac-toggle-label"><span class="proj-toggle-label" id="project-g-b66a0ec3bc4930ac-toggle-label">展开</span><span class="proj-arrow" aria-hidden="true">↓</span></button></article><article class="proj" id="project-g-60df2a0dc87c58af-card" data-project-id="g-60df2a0dc87c58af" data-tags="AI产品 产品" style="--i:7"><div class="proj-tags"><span class="ptag">AI 产品</span><span class="ptag">产品</span></div><h3 class="proj-title" id="project-g-60df2a0dc87c58af-title" tabindex="-1"><span class="nowrap">AI 数据产品</span> · 数据湖与智慧医疗</h3><div class="proj-meta"><span class="proj-meta-detail">产品负责人 · 创业期 · 2023 — 2025</span></div><div class="proj-highlight">吞吐 <span class="nowrap">+50%</span> · 准确率 <span class="nowrap">+30%</span> · 覆盖 <span class="nowrap">13.5 万人</span></div><div class="proj-sum">重构数据湖并交付医疗 AI 应用，覆盖模型选型、数据流程与产品上线。</div><div class="proj-details" id="project-g-60df2a0dc87c58af" aria-hidden="true"><div class="proj-details-inner"><ul class="proj-points"><li class="has-label"><span class="proj-point-label">重构</span><span class="proj-point-copy">完成模型选型和标注体系建设，重做从数据采集到应用的全流程。</span></li><li class="has-label"><span class="proj-point-label">结果</span><span class="proj-point-copy">数据处理吞吐提升 <span class="nowrap">50%</span>、准确率提升超过 <span class="nowrap">30%</span>。</span></li><li class="has-label"><span class="proj-point-label">应用</span><span class="proj-point-copy">交付智慧医疗数据系统和慢病问答助手，前者覆盖 <span class="nowrap">13.5 万人</span>。</span></li></ul></div></div><button class="proj-toggle" type="button" aria-expanded="false" aria-controls="project-g-60df2a0dc87c58af" aria-labelledby="project-g-60df2a0dc87c58af-title project-g-60df2a0dc87c58af-toggle-label"><span class="proj-toggle-label" id="project-g-60df2a0dc87c58af-toggle-label">展开</span><span class="proj-arrow" aria-hidden="true">↓</span></button></article></div></div>
+    </div>
+  </section>
+
+  <section class="tile tile-dark" id="decision-lab" tabindex="-1" aria-labelledby="decisionLabTitle">
+    <div class="inner">
+      <div class="sec-head reveal"><span class="kicker">WorkMe Decision Lab</span><h2 id="decisionLabTitle" tabindex="-1">不要先相信结论，进入一次真实项目情境</h2>
+        <div class="note">选择一个项目情境，先做出你的判断，再查看我公开记录的思考、同项目关联动作、结果边界和事实依据。这里没有标准答案。</div>
+      </div>
+      <div class="lab-shell reveal" id="decisionLab" data-lab-view="replay" data-route-id="" data-stage="brief">
+        <div class="lab-topbar">
+          <button class="lab-back" id="labBack" type="button">← 返回经典简历</button>
+          <div class="lab-brand">Decision Lab / Evidence backed</div>
+          <div class="lab-view-tabs" role="group" aria-label="切换探索视角">
+            <button class="lab-view-tab" type="button" data-lab-view-target="replay" aria-pressed="true">判断实验</button>
+            <button class="lab-view-tab" type="button" data-lab-view-target="actions" aria-pressed="false">动作台</button>
+            <button class="lab-view-tab" type="button" data-lab-view-target="thoughts" aria-pressed="false">思考日志</button>
+            <button class="lab-view-tab" type="button" data-lab-view-target="graph" aria-pressed="false">关系图谱</button>
+          </div>
+        </div>
+
+        <div class="lab-panel lab-replay" id="labReplayPanel">
+          <nav class="lab-route-list" id="labRouteList" aria-label="选择一条项目情境路线">
+            <div class="lab-route-list-title">选择项目情境</div>
+          </nav>
+          <article class="lab-stage" id="labStage" aria-labelledby="labStageTitle">
+            <div class="lab-stage-head">
+              <div>
+                <div class="lab-stage-kicker" id="labStageKicker">正在读取事实路线</div>
+                <h3 id="labStageTitle" tabindex="-1">Decision Lab</h3>
+                <p class="lab-stage-lede" id="labStageLede"></p>
+              </div>
+              <div class="lab-step-count" id="labStepCount">01 / 04</div>
+            </div>
+            <div class="lab-step" id="labStepContent"></div>
+          </article>
+          <aside class="lab-proof" id="labProof" aria-labelledby="labProofTitle">
+            <h3 id="labProofTitle">主张验证台</h3>
+            <p class="lab-proof-copy">随着路线推进，项目、动作、证据与边界会逐步落入验证槽。</p>
+            <div class="lab-claim" id="labClaim">选择一条路线开始</div>
+            <div class="lab-proof-slots" id="labProofSlots"></div>
+            <div class="lab-boundary" id="labBoundary">不会计算可信度分数；只展示公开事实明确支持的内容。</div>
+          </aside>
+        </div>
+
+        <section class="lab-panel lab-library" id="labActionsPanel" hidden aria-labelledby="labActionsTitle">
+          <div class="lab-library-head"><div><div class="lab-stage-kicker">ACT / Delivery log</div><h3 id="labActionsTitle" tabindex="-1">动作台</h3></div>
+            <p>直接浏览具体做过什么。点击任意动作，可以回到它关联的项目情境。</p></div>
+          <div class="lab-library-grid" id="labActionGrid"></div>
+        </section>
+
+        <section class="lab-panel lab-library" id="labThoughtsPanel" hidden aria-labelledby="labThoughtsTitle">
+          <div class="lab-library-head"><div><div class="lab-stage-kicker">THINK / Decision log</div><h3 id="labThoughtsTitle" tabindex="-1">思考日志</h3></div>
+            <p>这些不是包装出来的口号，而是仍在真实项目中接受验证的产品判断。</p></div>
+          <div class="lab-library-grid" id="labThoughtGrid"></div>
+        </section>
+
+        <section class="lab-panel lab-graph" id="labGraphPanel" hidden aria-labelledby="labGraphTitle">
+          <div class="lab-library-head"><div><div class="lab-stage-kicker">MAP / Knowledge graph</div><h3 id="labGraphTitle" tabindex="-1">关系图谱</h3></div>
+            <p>从任意项目出发，沿真实关系钻到工作方式、能力、事实记录或所属项目；不用蜘蛛网，也能看清它们怎样互相支撑。</p></div>
+          <div class="lab-graph-layout">
+            <nav class="lab-graph-index" id="labGraphIndex" aria-label="选择图谱入口项目">
+              <div class="lab-graph-index-title">从项目进入</div>
+            </nav>
+            <article class="lab-graph-focus" id="labGraphFocus">
+              <div class="lab-graph-trail" id="labGraphTrail" aria-label="图谱探索路径"></div>
+              <div class="lab-graph-node" id="labGraphNode" tabindex="-1"></div>
+              <div class="lab-graph-groups" id="labGraphGroups"></div>
+            </article>
+          </div>
+        </section>
+
+        <div class="sr-only" id="labStatus" role="status" aria-live="polite"></div>
+      </div>
+      <script type="application/json" id="decisionLabData">{"version":"1.1","routes":[{"id":"growth-quality","index":"01","theme":"增长与验证","title":"流量涨了，产品就成功了吗？","lede":"Skill Finder 的增长数字很好看，但产品问题并没有自动消失。","project":{"id":"g-a38bc2d5ce0662ba","label":"Skill Finder 用户增长","status":"active","period":"2026 — 至今","positioning":"Meyo 衍生专项"},"brief":[{"label":"增长结果","state":"measured","text":"Landing UV 从 433 增至 726；社群分享贡献 26.5% 的 UV，是最大的可归因渠道。"},{"label":"关键矛盾","state":"observed","text":"流量增长没有带来稳定留存。"}],"prompt":"如果只能先追一条线索，你会从哪里开始？","options":[{"id":"channel","label":"继续放大最大的可归因渠道"},{"id":"retention","label":"先追用户为什么没有留下"},{"id":"recall","label":"先检查 Skill 召回质量"},{"id":"pages","label":"继续扩充场景承接页"}],"thinking":{"title":"增长高峰不是产品成功","summary":"Skill Finder 的 UV 周环比提升 67.7%，留存却没有同步改善。我会继续放大有效渠道，也把用户访谈和召回质量列为下一步重点。"},"action_heading":"同项目关联动作","action_note":"公开事实能确认这些推进属于同一项目，但不把公开思考与每个动作改写成唯一的历史因果链。","actions":[{"label":"系统建设","state":"implemented","text":"上线 4 个职业场景页和 1 个 Agent 自主找 Skill 页面，并把 pSEO 从手写 HTML 重构为 SSR + JSON；旧发布方式继续保留，新架构效果待线上验证。"},{"label":"下一步","state":"pending","text":"流量增长没有带来稳定留存；下一步通过用户访谈定位流失原因，并检查召回质量。"}],"evidence":[{"label":"增长结果","state":"measured","text":"Landing UV 从 433 增至 726；社群分享贡献 26.5% 的 UV，是最大的可归因渠道。"},{"label":"pSEO 架构","state":"implemented-pending","text":"上线 4 个职业场景页和 1 个 Agent 自主找 Skill 页面，并把 pSEO 从手写 HTML 重构为 SSR + JSON；旧发布方式继续保留，新架构效果待线上验证。"},{"label":"下一步","state":"pending","text":"流量增长没有带来稳定留存；下一步通过用户访谈定位流失原因，并检查召回质量。"}],"claim":"先验证，再扩大投入","proof":{"state":"implemented-pending","text":"上线 4 个职业场景页和 1 个 Agent 自主找 Skill 页面，并把 pSEO 从手写 HTML 重构为 SSR + JSON；旧发布方式继续保留，新架构效果待线上验证。"},"boundary":"UV 增长与渠道占比已经测量；稳定留存尚未建立，pSEO 新架构的线上效果仍待验证。","followups":[{"question":"具体做了哪些增长动作？","answer":"上线 4 个职业场景页和 1 个 Agent 自主找 Skill 页面，并把 pSEO 从手写 HTML 重构为 SSR + JSON；旧发布方式继续保留，新架构效果待线上验证。"},{"question":"哪些部分还没有验证？","answer":"稳定留存尚未建立，pSEO 新架构线上效果待验证，召回质量也仍待检查。"},{"question":"为什么没有只做流量？","answer":"Skill Finder 的 UV 周环比提升 67.7%，留存却没有同步改善。我会继续放大有效渠道，也把用户访谈和召回质量列为下一步重点。"}]},{"id":"recall-marginal-gain","index":"02","theme":"评测与方法","title":"最强的 Skill，就一定最适合吗？","lede":"同一个问题会命中通用与专用 Skill，绝对高分不一定等于场景最匹配。","project":{"id":"g-7db1938bae0e07eb","label":"Skill 评测与召回方案","status":"active","period":"2026 — 至今","positioning":""},"brief":[{"label":"问题","state":"judgment","text":"不按绝对质量分直接排名，避免通用 Skill 长期压过更匹配的专用 Skill。"},{"label":"目标","state":"designed","text":"建立可比较、可验证的 Skill 选择依据。"}],"prompt":"如果要决定哪个 Skill 应被召回，你会优先采用哪条规则？","options":[{"id":"absolute","label":"直接选择绝对质量分最高的 Skill"},{"id":"marginal","label":"比较它相对无 Skill 基线的增益"},{"id":"gate","label":"先做静态门槛过滤"},{"id":"peer","label":"让同类 Skill 进行横向比较"}],"thinking":{"title":"召回应比较增益，而不是只看谁更强","summary":"同一个问题常同时命中通用和专用 Skill。只看绝对分，通用 Skill 会长期占优；我更关心它在具体场景里相对基线提升了多少。"},"action_heading":"同项目关联方案","action_note":"公开资料确认这些方案与进度属于同一项目；访客选项只是互动假设，不是当时的历史备选方案。","actions":[{"label":"方案设计","state":"designed","text":"设计静态过滤、单 Skill 达标和同类横评三层结构，同一份执行轨迹同时用于达标判断和横评。"},{"label":"当前进度","state":"pending","text":"方案与设计文档已完成；Skill × 场景增益表及召回效果仍待实现和验证。"}],"evidence":[{"label":"判断","state":"judgment","text":"不按绝对质量分直接排名，避免通用 Skill 长期压过更匹配的专用 Skill。"},{"label":"测评方案","state":"designed","text":"设计静态过滤、单 Skill 达标和同类横评三层结构，同一份执行轨迹同时用于达标判断和横评。"},{"label":"落地效果","state":"pending","text":"方案与设计文档已完成；Skill × 场景增益表及召回效果仍待实现和验证。"}],"claim":"先确认问题，再决定方案","proof":{"state":"designed","text":"设计静态过滤、单 Skill 达标和同类横评三层结构，同一份执行轨迹同时用于达标判断和横评。"},"boundary":"方案与设计文档已经完成，但 Skill × 场景增益表仍待实现，召回效果尚未验证。","followups":[{"question":"为什么绝对分会有问题？","answer":"不按绝对质量分直接排名，避免通用 Skill 长期压过更匹配的专用 Skill。"},{"question":"三层测评具体是什么？","answer":"设计静态过滤、单 Skill 达标和同类横评三层结构，同一份执行轨迹同时用于达标判断和横评。"},{"question":"这个方案已经产生效果了吗？","answer":"方案与设计文档已完成；Skill × 场景增益表及召回效果仍待实现和验证。"}]},{"id":"community-certainty","index":"03","theme":"社区与价值","title":"Agent 已经会回答，社区还剩什么价值？","lede":"如果社区只是重复搜索和生成，它很难形成长期价值。","project":{"id":"g-85f2a29f8cd62a47","label":"觅游（Meyo）Agent 社区","status":"active","period":"2026 — 至今","positioning":"代表性主项目"},"brief":[{"label":"项目","state":"active","text":"负责 Meyo 社区从 0 到 1，并从主线延展出世界杯活动与 Skill Finder 两个专项。"},{"label":"核心问题","state":"judgment","text":"通用 Agent 已经能够搜索和生成，社区需要提供答案之外的价值。"}],"prompt":"你认为社区最值得补上的是什么？","options":[{"id":"faster","label":"更快生成答案"},{"id":"tools","label":"提供更多工具入口"},{"id":"validation","label":"来自真实经验的社会验证"},{"id":"feed","label":"更密集的信息流与推荐"}],"thinking":{"title":"社区要提供答案之外的确定性","summary":"通用 Agent 已经能搜索和生成，社区不能只重复答案。它更有价值的是来自真实经验的社会验证，帮助用户判断一个做法在自己的处境中是否可用。"},"action_heading":"同项目关联动作","action_note":"公开事实能确认这些动作属于同一项目，但不能证明它们全部由上述判断直接导致。","actions":[{"label":"主链路","state":"implemented","text":"完成入驻、Agent 活跃状态和推荐的 4 轮迭代，缩短上手路径，并减少无效推送。"},{"label":"专项","state":"implemented","text":"从社区主线延展出世界杯预测活动与 Skill Finder，分别承担阶段性活跃验证与长期增长探索。"},{"label":"基础设施","state":"implemented","text":"定义核心指标与埋点，1 个月交付首版数据看板；同时负责安全合规、私聊和组队，上线前完成接口防护与隐私规则整改。"}],"evidence":[{"label":"主链路","state":"implemented","text":"完成入驻、Agent 活跃状态和推荐的 4 轮迭代，缩短上手路径，并减少无效推送。"},{"label":"衍生专项","state":"implemented","text":"从社区主线延展出世界杯预测活动与 Skill Finder，分别承担阶段性活跃验证与长期增长探索。"},{"label":"基础设施","state":"implemented","text":"定义核心指标与埋点，1 个月交付首版数据看板；同时负责安全合规、私聊和组队，上线前完成接口防护与隐私规则整改。"},{"label":"长期价值","state":"gap","text":"公开资料尚未提供“社会验证价值已经成立”的量化结果。"}],"claim":"把复杂项目拆解并推进上线","proof":{"state":"implemented","text":"主链路 4 轮迭代 · 2 个衍生专项 · 数据看板 1 个月交付"},"boundary":"主链路、专项和数据看板属于已交付事实；“社会验证”是否形成长期社区价值仍在继续验证。专项指标不归为 Meyo 整体指标。","followups":[{"question":"这个判断关联了哪些已交付动作？","answer":"同一项目中完成了主链路 4 轮迭代、两个衍生专项和首版数据看板。"},{"question":"这个价值已经量化验证了吗？","answer":"目前没有公开量化结果能够证明社会验证价值已经成立，仍在继续验证。"},{"question":"Meyo 与两个专项是什么关系？","answer":"从社区主线延展出世界杯预测活动与 Skill Finder，分别承担阶段性活跃验证与长期增长探索。"}]}],"views":{"actions":[{"routeId":"growth-quality","project":"Skill Finder 用户增长","label":"系统建设","state":"implemented","text":"上线 4 个职业场景页和 1 个 Agent 自主找 Skill 页面，并把 pSEO 从手写 HTML 重构为 SSR + JSON；旧发布方式继续保留，新架构效果待线上验证。"},{"routeId":"growth-quality","project":"Skill Finder 用户增长","label":"下一步","state":"pending","text":"流量增长没有带来稳定留存；下一步通过用户访谈定位流失原因，并检查召回质量。"},{"routeId":"recall-marginal-gain","project":"Skill 评测与召回方案","label":"方案设计","state":"designed","text":"设计静态过滤、单 Skill 达标和同类横评三层结构，同一份执行轨迹同时用于达标判断和横评。"},{"routeId":"recall-marginal-gain","project":"Skill 评测与召回方案","label":"当前进度","state":"pending","text":"方案与设计文档已完成；Skill × 场景增益表及召回效果仍待实现和验证。"},{"routeId":"community-certainty","project":"觅游（Meyo）Agent 社区","label":"主链路","state":"implemented","text":"完成入驻、Agent 活跃状态和推荐的 4 轮迭代，缩短上手路径，并减少无效推送。"},{"routeId":"community-certainty","project":"觅游（Meyo）Agent 社区","label":"专项","state":"implemented","text":"从社区主线延展出世界杯预测活动与 Skill Finder，分别承担阶段性活跃验证与长期增长探索。"},{"routeId":"community-certainty","project":"觅游（Meyo）Agent 社区","label":"基础设施","state":"implemented","text":"定义核心指标与埋点，1 个月交付首版数据看板；同时负责安全合规、私聊和组队，上线前完成接口防护与隐私规则整改。"}],"thoughts":[{"routeId":"growth-quality","project":"Skill Finder 用户增长","title":"增长高峰不是产品成功","summary":"Skill Finder 的 UV 周环比提升 67.7%，留存却没有同步改善。我会继续放大有效渠道，也把用户访谈和召回质量列为下一步重点。"},{"routeId":"recall-marginal-gain","project":"Skill 评测与召回方案","title":"召回应比较增益，而不是只看谁更强","summary":"同一个问题常同时命中通用和专用 Skill。只看绝对分，通用 Skill 会长期占优；我更关心它在具体场景里相对基线提升了多少。"},{"routeId":"community-certainty","project":"觅游（Meyo）Agent 社区","title":"社区要提供答案之外的确定性","summary":"通用 Agent 已经能搜索和生成，社区不能只重复答案。它更有价值的是来自真实经验的社会验证，帮助用户判断一个做法在自己的处境中是否可用。"}]}}</script>
+      <script type="application/json" id="knowledgeGraphData">{"nodes":[{"id":"g-471551cfc6eea2c5","type":"trait","label":"产品判断，自己动手验证","weight":5},{"id":"g-f190c9c6a64c6076","type":"trait","label":"重复问题，做成通用能力","weight":5},{"id":"g-3231d128f9a9e018","type":"trait","label":"把 AI 用进实际交付","weight":4},{"id":"g-3484911634e087c1","type":"trait","label":"先确认问题，再决定方案","weight":4},{"id":"g-adf65ec55a4661cc","type":"trait","label":"把复杂项目拆解并推进上线","weight":4},{"id":"g-abbb356ace03a8b4","type":"trait","label":"先验证，再扩大投入","weight":3},{"id":"g-195eb56542bba499","type":"capability","label":"AI 产品","items":["Agent 与 Skill 产品设计","搜索、召回与质量评测","Agent Context 与长期记忆设计"]},{"id":"g-493fd4d2bb345be6","type":"capability","label":"产品与增长","items":["0 到 1 产品与社区冷启动","增长归因与留存诊断","内容增长、pSEO/GEO 与数据看板"]},{"id":"g-abf4b1418c7c15a3","type":"capability","label":"工程与安全","items":["原型、前后端与 Skill 交付","Python 自动化与多端数据采集","大模型辅助逆向与安全治理"]},{"id":"g-85f2a29f8cd62a47","type":"project","label":"觅游（Meyo）Agent 社区","status":"active","period":"2026 — 至今","summary":"负责 Meyo 社区从 0 到 1，并从主线延展出世界杯活动与 Skill Finder 两个专项。","positioning":"代表性主项目","representative":true},{"id":"g-e8b122ccdf5617b6","type":"capability","label":"数据产品/指标体系","items":[]},{"id":"g-8ef5c28445cf15e6","type":"evidence","label":"公开事实记录 06"},{"id":"g-61d4a4f40a981bab","type":"evidence","label":"公开事实记录 02"},{"id":"g-3f0a39f7b8f16c22","type":"project","label":"世界杯 Agent 预测活动","status":"archived","period":"2026","summary":"Meyo 社区衍生的活动专项，以 Agent 调用 Skill 为核心机制，1 周完成从设计到全栈上线。","positioning":"Meyo 衍生专项","representative":false},{"id":"g-0fe01956fc96114c","type":"capability","label":"全栈交付","items":[]},{"id":"g-9916b29b08269b04","type":"evidence","label":"公开事实记录 07"},{"id":"g-a38bc2d5ce0662ba","type":"project","label":"Skill Finder 用户增长","status":"active","period":"2026 — 至今","summary":"Meyo 社区衍生的增长专项，搭建内容触达、场景页承接和渠道归因链路。","positioning":"Meyo 衍生专项","representative":false},{"id":"g-1de27703d9660ff7","type":"capability","label":"内容营销/SEO/GEO","items":[]},{"id":"g-1f91432ef965b35a","type":"evidence","label":"公开事实记录 08"},{"id":"g-ad9b372c724b2091","type":"evidence","label":"公开事实记录 04"},{"id":"g-4b4dcd963d024e38","type":"evidence","label":"公开事实记录 03"},{"id":"g-5e4e5789cdc94a8b","type":"evidence","label":"公开事实记录 01"},{"id":"g-7db1938bae0e07eb","type":"project","label":"Skill 评测与召回方案","status":"active","period":"2026 — 至今","summary":"为多 Skill 召回建立选择依据，完成三层测评与相对基线增益方案设计。","positioning":"","representative":false},{"id":"g-0ec056756f2db024","type":"capability","label":"AI 评测","items":[]},{"id":"g-1116529e905f7964","type":"capability","label":"产品方法论","items":[]},{"id":"g-1e3e58a20fc47ec7","type":"evidence","label":"公开事实记录 05"},{"id":"g-4e616671cc97487d","type":"project","label":"社区 Agent 回答质量盲评","status":"active","period":"2026 — 至今","summary":"用 10 道真实用户问题完成两轮独立盲评，定位技术类回答的交付短板。","positioning":"","representative":false},{"id":"g-3404b9af102384ee","type":"project","label":"大模型辅助逆向分析","status":"archived","period":"2024 — 2026","summary":"将 LLM 引入逆向分析，辅助定位关键函数，并把稳定步骤封装成版本适配脚本。","positioning":"","representative":false},{"id":"g-b66a0ec3bc4930ac","type":"project","label":"多端数据采集与稳定性体系","status":"archived","period":"2024 — 2026","summary":"将分散在多条业务线的数据采集逻辑收敛为统一框架，同时改善接入效率和稳定性。","positioning":"","representative":false},{"id":"g-a5ae3eafee8626dc","type":"capability","label":"工程","items":[]},{"id":"g-60df2a0dc87c58af","type":"project","label":"AI 数据产品 · 数据湖与智慧医疗","status":"archived","period":"2023 — 2025","summary":"重构数据湖并交付医疗 AI 应用，覆盖模型选型、数据流程与产品上线。","positioning":"","representative":false}],"edges":[{"from":"g-85f2a29f8cd62a47","to":"g-adf65ec55a4661cc","rel":"validates"},{"from":"g-85f2a29f8cd62a47","to":"g-471551cfc6eea2c5","rel":"validates"},{"from":"g-85f2a29f8cd62a47","to":"g-195eb56542bba499","rel":"uses"},{"from":"g-85f2a29f8cd62a47","to":"g-e8b122ccdf5617b6","rel":"uses"},{"from":"g-85f2a29f8cd62a47","to":"g-abf4b1418c7c15a3","rel":"uses"},{"from":"g-85f2a29f8cd62a47","to":"g-8ef5c28445cf15e6","rel":"evidence"},{"from":"g-85f2a29f8cd62a47","to":"g-61d4a4f40a981bab","rel":"evidence"},{"from":"g-3f0a39f7b8f16c22","to":"g-adf65ec55a4661cc","rel":"validates"},{"from":"g-3f0a39f7b8f16c22","to":"g-abbb356ace03a8b4","rel":"validates"},{"from":"g-3f0a39f7b8f16c22","to":"g-0fe01956fc96114c","rel":"uses"},{"from":"g-3f0a39f7b8f16c22","to":"g-493fd4d2bb345be6","rel":"uses"},{"from":"g-3f0a39f7b8f16c22","to":"g-85f2a29f8cd62a47","rel":"part_of"},{"from":"g-3f0a39f7b8f16c22","to":"g-9916b29b08269b04","rel":"evidence"},{"from":"g-a38bc2d5ce0662ba","to":"g-abbb356ace03a8b4","rel":"validates"},{"from":"g-a38bc2d5ce0662ba","to":"g-f190c9c6a64c6076","rel":"validates"},{"from":"g-a38bc2d5ce0662ba","to":"g-493fd4d2bb345be6","rel":"uses"},{"from":"g-a38bc2d5ce0662ba","to":"g-1de27703d9660ff7","rel":"uses"},{"from":"g-a38bc2d5ce0662ba","to":"g-85f2a29f8cd62a47","rel":"part_of"},{"from":"g-a38bc2d5ce0662ba","to":"g-9916b29b08269b04","rel":"evidence"},{"from":"g-a38bc2d5ce0662ba","to":"g-1f91432ef965b35a","rel":"evidence"},{"from":"g-a38bc2d5ce0662ba","to":"g-ad9b372c724b2091","rel":"evidence"},{"from":"g-a38bc2d5ce0662ba","to":"g-4b4dcd963d024e38","rel":"evidence"},{"from":"g-a38bc2d5ce0662ba","to":"g-5e4e5789cdc94a8b","rel":"evidence"},{"from":"g-7db1938bae0e07eb","to":"g-3484911634e087c1","rel":"validates"},{"from":"g-7db1938bae0e07eb","to":"g-f190c9c6a64c6076","rel":"validates"},{"from":"g-7db1938bae0e07eb","to":"g-0ec056756f2db024","rel":"uses"},{"from":"g-7db1938bae0e07eb","to":"g-1116529e905f7964","rel":"uses"},{"from":"g-7db1938bae0e07eb","to":"g-1e3e58a20fc47ec7","rel":"evidence"},{"from":"g-4e616671cc97487d","to":"g-3484911634e087c1","rel":"validates"},{"from":"g-4e616671cc97487d","to":"g-0ec056756f2db024","rel":"uses"},{"from":"g-4e616671cc97487d","to":"g-9916b29b08269b04","rel":"evidence"},{"from":"g-3404b9af102384ee","to":"g-3231d128f9a9e018","rel":"validates"},{"from":"g-3404b9af102384ee","to":"g-abf4b1418c7c15a3","rel":"uses"},{"from":"g-b66a0ec3bc4930ac","to":"g-f190c9c6a64c6076","rel":"validates"},{"from":"g-b66a0ec3bc4930ac","to":"g-abf4b1418c7c15a3","rel":"uses"},{"from":"g-b66a0ec3bc4930ac","to":"g-a5ae3eafee8626dc","rel":"uses"},{"from":"g-60df2a0dc87c58af","to":"g-adf65ec55a4661cc","rel":"validates"},{"from":"g-60df2a0dc87c58af","to":"g-e8b122ccdf5617b6","rel":"uses"},{"from":"g-60df2a0dc87c58af","to":"g-195eb56542bba499","rel":"uses"}],"counts":{"nodes":31,"edges":39}}</script>
     </div>
   </section>
 
@@ -488,7 +802,7 @@
     <div class="inner">
       <div class="sec-head reveal"><span class="kicker">Capabilities</span><h2>能力组合</h2></div>
       <div><div class="cap-grid"><div class="cap-col" style="--i:0"><div class="cap-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v3M12 18v3M3 12h3M18 12h3M5.6 5.6l2.1 2.1M16.3 16.3l2.1 2.1M18.4 5.6l-2.1 2.1M7.7 16.3l-2.1 2.1"/><circle cx="12" cy="12" r="4"/></svg></div><h3><span class="nowrap">AI 产品</span></h3><div class="cap-tags"><span class="cap-tag">Agent 与 Skill 产品设计</span><span class="cap-tag">搜索、召回与质量评测</span><span class="cap-tag">Agent Context 与长期记忆设计</span></div></div><div class="cap-col" style="--i:1"><div class="cap-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 19V9M10 19V5M16 19v-7M22 19V3"/></svg></div><h3>产品与增长</h3><div class="cap-tags"><span class="cap-tag"><span class="nowrap">0 到 1</span> 产品与社区冷启动</span><span class="cap-tag">增长归因与留存诊断</span><span class="cap-tag">内容增长、pSEO/GEO 与数据看板</span></div></div><div class="cap-col" style="--i:2"><div class="cap-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m8 8-4 4 4 4M16 8l4 4-4 4M14 4l-4 16"/></svg></div><h3>工程与安全</h3><div class="cap-tags"><span class="cap-tag">原型、前后端与 Skill 交付</span><span class="cap-tag">Python 自动化与多端数据采集</span><span class="cap-tag">大模型辅助逆向与安全治理</span></div></div></div></div>
-      <div class="sec-head subsection-head reveal"><span class="kicker">Judgement</span><h2>产品判断</h2></div>
+      <div class="sec-head subsection-head reveal" id="judgement"><span class="kicker">Judgement</span><h2>产品判断</h2></div>
       <div class="evo reveal"><blockquote>以下是我在项目中形成、仍在继续验证的三个判断。</blockquote>
 <ul class="evo-thoughts">
 <li><strong class="evo-title">召回应比较增益，而不是只看谁更强</strong><span class="evo-copy">同一个问题常同时命中通用和专用 Skill。只看绝对分，通用 Skill 会长期占优；我更关心它在具体场景里相对基线提升了多少。</span></li>
@@ -611,6 +925,273 @@
       document.querySelectorAll('.chip').forEach(x=>{const active=x===c;x.classList.toggle('active',active);x.setAttribute('aria-pressed',String(active))});
       const tag=c.dataset.tag;document.querySelectorAll('.proj').forEach(p=>{
         p.classList.toggle('hide',tag!=='all'&&!(p.dataset.tags||'').split(' ').includes(tag))})}));
+
+    /* ---- Decision Lab：真实项目事实 → 访客假设 → 公开思考 → 关联动作 → 证据边界。 ---- */
+    const labDataNode=document.getElementById('decisionLabData'),graphDataNode=document.getElementById('knowledgeGraphData'),labRoot=document.getElementById('decisionLab');
+    if(labDataNode&&labRoot){
+      try{
+        const labData=JSON.parse(labDataNode.textContent),graphData=graphDataNode?JSON.parse(graphDataNode.textContent):{nodes:[],edges:[]},
+          labRoutes=labData.routes||[],routeById=new Map(labRoutes.map(route=>[route.id,route])),
+          labRouteList=document.getElementById('labRouteList'),labStage=document.getElementById('labStage'),labStageKicker=document.getElementById('labStageKicker'),
+          labStageTitle=document.getElementById('labStageTitle'),labStageLede=document.getElementById('labStageLede'),
+          labStepCount=document.getElementById('labStepCount'),labStepContent=document.getElementById('labStepContent'),
+          labClaim=document.getElementById('labClaim'),labProofSlots=document.getElementById('labProofSlots'),
+          labBoundary=document.getElementById('labBoundary'),labStatus=document.getElementById('labStatus'),
+          labReplayPanel=document.getElementById('labReplayPanel'),labActionsPanel=document.getElementById('labActionsPanel'),
+          labThoughtsPanel=document.getElementById('labThoughtsPanel'),labActionGrid=document.getElementById('labActionGrid'),
+          labThoughtGrid=document.getElementById('labThoughtGrid'),labGraphPanel=document.getElementById('labGraphPanel'),
+          labGraphIndex=document.getElementById('labGraphIndex'),labGraphTrail=document.getElementById('labGraphTrail'),
+          labGraphNode=document.getElementById('labGraphNode'),labGraphGroups=document.getElementById('labGraphGroups');
+        const graphNodes=graphData.nodes||[],graphEdges=graphData.edges||[],graphNodeById=new Map(graphNodes.map(node=>[node.id,node])),
+          initialGraphNode=graphNodes.find(node=>node.type==='project'&&node.representative)?.id||labRoutes[0]?.project?.id||graphNodes[0]?.id||'';
+        const labState={view:'replay',routeId:labRoutes[0]?.id||'',stage:'brief',choiceId:'',followupIndex:-1,
+            graphNodeId:initialGraphNode,graphTrail:[]},
+          labStages=['brief','choice','reveal','evidence'],
+          labStageLabel={brief:'项目事实',choice:'访客判断',reveal:'公开判断与关联动作',evidence:'事实与边界'},
+          stateLabel={measured:'已有数据',observed:'事实观察',judgment:'产品判断',active:'项目进行中',implemented:'已实现',
+            designed:'设计完成',pending:'待验证',gap:'证据缺口','implemented-pending':'已实现 · 效果待验证'},
+          graphTypeLabel={project:'项目',trait:'工作方式',capability:'能力',evidence:'公开事实'},
+          graphStatusLabel={active:'进行中',archived:'已归档',stale:'待更新'},
+          graphRelationLabel={
+            validates:{out:'验证的工作方式',in:'被这些项目验证'},uses:{out:'使用的能力',in:'使用这项能力的项目'},
+            evidence:{out:'事实记录',in:'由它支持的项目'},part_of:{out:'所属项目',in:'包含的专项'},
+          };
+
+        function labEl(tag,className,text){
+          const node=document.createElement(tag);if(className)node.className=className;if(text!==undefined)node.textContent=text;return node;
+        }
+        function activeLabRoute(){return routeById.get(labState.routeId)}
+        function focusLabTarget(target,scrollTarget=null){
+          setTimeout(()=>{
+            if(scrollTarget&&matchMedia('(max-width:720px)').matches)scrollTarget.scrollIntoView({behavior:reduce?'auto':'smooth',block:'start'});
+            target?.focus({preventScroll:true});
+          },reduce?0:80);
+        }
+        function setLabView(view,{focus=true}={}){
+          labState.view=view;labRoot.dataset.labView=view;
+          document.querySelectorAll('[data-lab-view-target]').forEach(button=>button.setAttribute('aria-pressed',String(button.dataset.labViewTarget===view)));
+          labReplayPanel.hidden=view!=='replay';labActionsPanel.hidden=view!=='actions';labThoughtsPanel.hidden=view!=='thoughts';labGraphPanel.hidden=view!=='graph';
+          if(focus){
+            const target=view==='actions'?document.getElementById('labActionsTitle'):view==='thoughts'?document.getElementById('labThoughtsTitle'):view==='graph'?document.getElementById('labGraphTitle'):labStageTitle;
+            focusLabTarget(target);labStatus.textContent='已切换到'+(view==='replay'?'判断实验':view==='actions'?'动作台':view==='thoughts'?'思考日志':'关系图谱')+'。';
+          }
+        }
+        function selectLabRoute(routeId,{stage='brief',focus=true}={}){
+          if(!routeById.has(routeId))return;labState.routeId=routeId;labState.stage=stage;labState.choiceId='';labState.followupIndex=-1;
+          labRoot.dataset.routeId=routeId;renderLabRoutes();renderLabStage(true);if(focus)focusLabTarget(labStageTitle,labStage);
+        }
+        function renderLabRoutes(){
+          labRouteList.querySelectorAll('.lab-route').forEach(node=>node.remove());
+          labRoutes.forEach(route=>{
+            const button=labEl('button','lab-route');button.type='button';button.dataset.routeId=route.id;
+            button.setAttribute('aria-pressed',String(route.id===labState.routeId));
+            const index=labEl('span','lab-route-index',route.index),copy=document.createElement('span');
+            copy.append(labEl('strong','',route.title),labEl('small','',route.theme));button.append(index,copy);
+            button.addEventListener('click',()=>{setLabView('replay',{focus:false});selectLabRoute(route.id)});
+            labRouteList.appendChild(button);
+          });
+        }
+        function setLabStage(stage,{focus=true}={}){
+          if(!labStages.includes(stage))return;labState.stage=stage;labState.followupIndex=-1;renderLabStage(true);
+          if(focus)focusLabTarget(labStageTitle,labStage);
+        }
+        function renderProof(route){
+          const stageIndex=labStages.indexOf(labState.stage),proof=route.proof||route.actions?.[0];
+          labClaim.textContent=route.claim;labProofSlots.replaceChildren();
+          const slots=[
+            {label:'项目',text:route.project.label,open:true,state:'project'},
+            {label:'思考',text:route.thinking.title,open:stageIndex>=2,state:'thinking'},
+            {label:'支撑事实',text:proof?.text||'等待路线揭示',open:stageIndex>=2,state:proof?.state||'evidence'},
+            {label:'事实边界',text:stageIndex>=3?route.boundary:'继续路线后核对',open:stageIndex>=3,state:'boundary'},
+          ];
+          slots.forEach(slot=>{
+            const item=labEl('div','lab-proof-slot'+(slot.open?'':' is-locked'));item.dataset.evidenceState=slot.state;
+            item.append(labEl('span','',slot.label),labEl('p','',slot.open?slot.text:'尚未展开'));labProofSlots.appendChild(item);
+          });
+          labBoundary.textContent=stageIndex>=3?route.boundary:'不会计算可信度分数；只展示公开事实明确支持的内容。';
+        }
+        function appendLabActions(container,route){
+          const stack=labEl('div','lab-action-stack');
+          (route.actions||[]).forEach(action=>{
+            const item=labEl('div','lab-action-item');item.dataset.evidenceState=action.state;
+            item.append(labEl('span','',action.label+' · '+(stateLabel[action.state]||action.state)),labEl('p','',action.text));stack.appendChild(item);
+          });
+          container.appendChild(stack);
+          if(route.action_note)container.appendChild(labEl('p','lab-note',route.action_note));
+        }
+        function appendStageActions(container,buttons){
+          const row=labEl('div','lab-actions');buttons.forEach(config=>{
+            const button=labEl('button','lab-button'+(config.primary?' primary':''),config.label);button.type='button';
+            if(config.disabled)button.disabled=true;button.addEventListener('click',config.onClick);row.appendChild(button);
+          });container.appendChild(row);
+        }
+        function renderLabStage(announce=false){
+          const route=activeLabRoute();if(!route)return;
+          labRoot.dataset.routeId=route.id;labRoot.dataset.stage=labState.stage;labRoot.dataset.choiceId=labState.choiceId;
+          document.querySelectorAll('.lab-route').forEach(button=>button.setAttribute('aria-pressed',String(button.dataset.routeId===route.id)));
+          const stageIndex=labStages.indexOf(labState.stage);
+          labStageKicker.textContent=route.theme+' · '+route.project.label;labStageTitle.textContent=route.title;labStageLede.textContent=route.lede;
+          labStepCount.textContent=String(stageIndex+1).padStart(2,'0')+' / 04';labStepContent.replaceChildren();renderProof(route);
+
+          if(labState.stage==='brief'){
+            const grid=labEl('div','lab-brief-grid');
+            route.brief.forEach(fact=>{const item=labEl('div','lab-fact');item.dataset.evidenceState=fact.state;
+              item.append(labEl('span','',fact.label+' · '+(stateLabel[fact.state]||fact.state)),labEl('p','',fact.text));grid.appendChild(item)});
+            labStepContent.appendChild(grid);
+            appendStageActions(labStepContent,[{label:'进入这个情境 →',primary:true,onClick:()=>setLabStage('choice')}]);
+          }else if(labState.stage==='choice'){
+            labStepContent.appendChild(labEl('div','lab-prompt',route.prompt));
+            labStepContent.appendChild(labEl('p','lab-choice-note','以下选项是访客互动假设，不代表当时真实存在的备选方案；没有标准答案。'));
+            const list=labEl('div','lab-choice-list');
+            route.options.forEach(option=>{
+              const button=labEl('button','lab-choice',option.label);button.type='button';button.dataset.choiceId=option.id;
+              button.setAttribute('aria-pressed',String(labState.choiceId===option.id));button.addEventListener('click',()=>{
+                labState.choiceId=option.id;renderLabStage();labStatus.textContent='已选择：'+option.label+'。可以提交判断。';document.querySelector('.lab-choice[data-choice-id="'+option.id+'"]')?.focus({preventScroll:true});
+              });list.appendChild(button);
+            });
+            labStepContent.appendChild(list);
+            appendStageActions(labStepContent,[
+              {label:'提交我的判断',primary:true,disabled:!labState.choiceId,onClick:()=>setLabStage('reveal')},
+              {label:'暂不判断，直接看真实路径',onClick:()=>{labState.choiceId='';setLabStage('reveal')}},
+            ]);
+          }else if(labState.stage==='reveal'){
+            const selected=route.options.find(option=>option.id===labState.choiceId),grid=labEl('div','lab-reveal-grid');
+            const visitor=labEl('section','lab-reveal-card');visitor.append(labEl('h4','', '你的选择'),
+              labEl('strong','',selected?selected.label:'暂不判断'),labEl('p','', '这是访客假设，不被当作历史上真实存在的备选方案。'));
+            const actual=labEl('section','lab-reveal-card is-actual');actual.append(labEl('h4','', 'SLin 公开记录的判断'),
+              labEl('strong','',route.thinking.title),labEl('p','',route.thinking.summary));grid.append(visitor,actual);labStepContent.appendChild(grid);
+            labStepContent.appendChild(labEl('div','lab-prompt',route.action_heading));appendLabActions(labStepContent,route);
+            appendStageActions(labStepContent,[
+              {label:'核对事实与边界 →',primary:true,onClick:()=>setLabStage('evidence')},
+              {label:'重新选择',onClick:()=>{labState.choiceId='';setLabStage('choice')}},
+            ]);
+          }else{
+            const list=labEl('div','lab-evidence-list');
+            route.evidence.forEach(evidence=>{const item=labEl('article','lab-evidence');item.dataset.evidenceState=evidence.state;
+              item.append(labEl('span','lab-evidence-state',evidence.label+' · '+(stateLabel[evidence.state]||evidence.state)),labEl('p','',evidence.text));list.appendChild(item)});
+            labStepContent.appendChild(list);
+            const follow=labEl('section','lab-followups');follow.appendChild(labEl('h4','', '继续追问这条路线'));
+              const followList=labEl('div','lab-followup-list');
+              route.followups.forEach((entry,index)=>{const button=labEl('button','lab-followup',entry.question);button.type='button';
+              button.setAttribute('aria-pressed',String(labState.followupIndex===index));button.addEventListener('click',()=>{labState.followupIndex=index;renderLabStage();labStatus.textContent='已展开追问：'+entry.question;
+                setTimeout(()=>document.querySelector('.lab-followup-answer')?.focus({preventScroll:true}),reduce?0:50)});followList.appendChild(button)});
+            follow.appendChild(followList);
+            if(labState.followupIndex>=0){const answer=labEl('div','lab-followup-answer',route.followups[labState.followupIndex].answer);answer.tabIndex=-1;follow.appendChild(answer)}
+            labStepContent.appendChild(follow);
+            appendStageActions(labStepContent,[
+              {label:'在经典简历中查看项目',primary:true,onClick:()=>showLabProject(route)},
+              {label:'换一条路线',onClick:()=>{const index=labRoutes.findIndex(item=>item.id===labState.routeId),next=labRoutes[(index+1)%labRoutes.length];if(next)selectLabRoute(next.id)}},
+            ]);
+          }
+          if(announce)labStatus.textContent=route.title+'，'+labStageLabel[labState.stage]+'，第 '+(stageIndex+1)+' 步，共 4 步。';
+        }
+        function renderLabLibraries(){
+          labActionGrid.replaceChildren();(labData.views?.actions||[]).forEach(action=>{
+            const button=labEl('button','lab-library-card');button.type='button';button.dataset.routeId=action.routeId;button.dataset.evidenceState=action.state;
+            button.append(labEl('span','',action.project+' · '+(stateLabel[action.state]||action.state)),labEl('strong','',action.label),labEl('p','',action.text));
+            button.addEventListener('click',()=>{setLabView('replay',{focus:false});selectLabRoute(action.routeId,{stage:'reveal'})});labActionGrid.appendChild(button);
+          });
+          labThoughtGrid.replaceChildren();(labData.views?.thoughts||[]).forEach(thought=>{
+            const button=labEl('button','lab-library-card');button.type='button';button.dataset.routeId=thought.routeId;
+            button.append(labEl('span','',thought.project),labEl('strong','',thought.title),labEl('p','',thought.summary));
+            button.addEventListener('click',()=>{setLabView('replay',{focus:false});selectLabRoute(thought.routeId,{stage:'reveal'})});labThoughtGrid.appendChild(button);
+          });
+        }
+        function graphRelationsFor(nodeId){
+          const relations=[];
+          graphEdges.forEach(edge=>{
+            let otherId='',direction='';
+            if(edge.from===nodeId){otherId=edge.to;direction='out'}else if(edge.to===nodeId){otherId=edge.from;direction='in'}else return;
+            const node=graphNodeById.get(otherId);if(!node)return;
+            relations.push({node,label:graphRelationLabel[edge.rel]?.[direction]||edge.rel});
+          });
+          return relations;
+        }
+        function graphNodeCopy(node){
+          if(node.type==='project')return node.summary||'从这个项目继续查看它验证的工作方式、使用的能力与公开事实。';
+          if(node.type==='capability')return (node.items||[]).join(' · ')||'查看哪些项目使用了这项能力。';
+          if(node.type==='trait'){
+            const count=graphEdges.filter(edge=>edge.rel==='validates'&&edge.to===node.id).length;
+            return count?'由 '+count+' 个项目提供关联证据。':'继续沿关系查看支撑这条工作方式的项目。';
+          }
+          return '公开页面只显示匿名事实记录；沿关系返回项目，可查看允许公开的具体内容。';
+        }
+        function renderGraphIndex(){
+          labGraphIndex.querySelectorAll('.lab-graph-project').forEach(node=>node.remove());
+          graphNodes.filter(node=>node.type==='project').sort((a,b)=>Number(Boolean(b.representative))-Number(Boolean(a.representative))||a.label.localeCompare(b.label,'zh-CN')).forEach(node=>{
+            const button=labEl('button','lab-graph-project',node.label);button.type='button';button.dataset.graphNodeId=node.id;
+            button.setAttribute('aria-pressed',String(node.id===labState.graphNodeId));button.addEventListener('click',()=>setGraphNode(node.id,{reset:true}));labGraphIndex.appendChild(button);
+          });
+        }
+        function setGraphNode(nodeId,{push=true,reset=false,focus=true}={}){
+          if(!graphNodeById.has(nodeId))return;
+          if(reset)labState.graphTrail=[];
+          else if(push&&labState.graphNodeId&&labState.graphNodeId!==nodeId)labState.graphTrail=[...labState.graphTrail,labState.graphNodeId].slice(-6);
+          labState.graphNodeId=nodeId;renderGraphLens();
+          if(focus)focusLabTarget(labGraphNode,reset?labGraphNode:null);
+        }
+        function renderGraphLens(announce=true){
+          const node=graphNodeById.get(labState.graphNodeId);renderGraphIndex();labGraphTrail.replaceChildren();labGraphNode.replaceChildren();labGraphGroups.replaceChildren();
+          if(!node){labGraphGroups.appendChild(labEl('div','lab-graph-empty','当前没有可公开的图谱节点。'));return}
+          const path=[...labState.graphTrail,node.id];
+          path.forEach((nodeId,index)=>{
+            const pathNode=graphNodeById.get(nodeId);if(!pathNode)return;
+            if(index){labGraphTrail.appendChild(labEl('span','', '›'))}
+            if(index===path.length-1)labGraphTrail.appendChild(labEl('span','',pathNode.label));
+            else{
+              const button=labEl('button','',pathNode.label);button.type='button';button.addEventListener('click',()=>{
+                labState.graphTrail=path.slice(0,index);labState.graphNodeId=nodeId;renderGraphLens();setTimeout(()=>labGraphNode.focus({preventScroll:true}),reduce?0:70);
+              });labGraphTrail.appendChild(button);
+            }
+          });
+          const type=labEl('div','lab-graph-node-type',(graphTypeLabel[node.type]||node.type)+' / Focus node'),
+            title=labEl('h4','',node.label),copy=labEl('p','lab-graph-node-copy',graphNodeCopy(node)),meta=labEl('div','lab-graph-node-meta');
+          title.id='labGraphNodeTitle';labGraphNode.setAttribute('aria-labelledby',title.id);labGraphNode.append(type,title,copy);
+          const metaItems=[];
+          if(node.type==='project')metaItems.push(graphStatusLabel[node.status]||node.status,node.period,node.positioning);
+          else if(node.type==='capability')metaItems.push((node.items||[]).length+' 个能力要素');
+          else if(node.type==='evidence')metaItems.push('匿名公开节点');
+          metaItems.filter(Boolean).forEach(value=>meta.appendChild(labEl('span','',value)));if(meta.childElementCount)labGraphNode.appendChild(meta);
+          if(node.type==='project'){
+            const open=labEl('button','lab-button','在经典简历中查看项目');open.type='button';open.addEventListener('click',()=>showProjectById(node.id));labGraphNode.appendChild(open);
+          }
+          const grouped=new Map();graphRelationsFor(node.id).forEach(relation=>{
+            if(!grouped.has(relation.label))grouped.set(relation.label,[]);grouped.get(relation.label).push(relation.node);
+          });
+          if(!grouped.size)labGraphGroups.appendChild(labEl('div','lab-graph-empty','这个公开节点暂时没有更多可展示的关系。'));
+          grouped.forEach((nodes,label)=>{
+            const group=labEl('section','lab-graph-group'),heading=labEl('h5','',label+' · '+nodes.length),grid=labEl('div','lab-graph-neighbors');group.append(heading,grid);
+            nodes.sort((a,b)=>a.label.localeCompare(b.label,'zh-CN')).forEach(related=>{
+              const button=labEl('button','lab-graph-neighbor');button.type='button';button.dataset.graphNodeId=related.id;
+              button.append(labEl('span','',graphTypeLabel[related.type]||related.type),labEl('strong','',related.label),labEl('p','',graphNodeCopy(related)));
+              button.addEventListener('click',()=>setGraphNode(related.id));grid.appendChild(button);
+            });labGraphGroups.appendChild(group);
+          });
+          if(announce)labStatus.textContent='图谱焦点已切换到 '+node.label+'，共有 '+graphRelationsFor(node.id).length+' 条可公开关系。';
+        }
+        function showProjectById(projectId){
+          document.querySelector('.chip[data-tag="all"]')?.click();
+          const card=[...document.querySelectorAll('.proj[data-project-id]')].find(node=>node.dataset.projectId===projectId);
+          if(card&&!card.classList.contains('open'))card.querySelector('.proj-toggle')?.click();
+          const target=card||document.getElementById('work');target?.scrollIntoView({behavior:reduce?'auto':'smooth',block:'start'});
+          if(card){card.classList.add('evidence-focus');setTimeout(()=>card.classList.remove('evidence-focus'),1300);
+            setTimeout(()=>card.querySelector('.proj-title')?.focus({preventScroll:true}),reduce?0:450)}
+          else setTimeout(()=>document.getElementById('work')?.focus?.({preventScroll:true}),reduce?0:450);
+        }
+        function showLabProject(route){showProjectById(route.project.id)}
+        document.querySelectorAll('[data-lab-view-target]').forEach(button=>button.addEventListener('click',()=>setLabView(button.dataset.labViewTarget)));
+        document.getElementById('labBack').addEventListener('click',()=>{
+          document.getElementById('top')?.scrollIntoView({behavior:reduce?'auto':'smooth',block:'start'});
+          setTimeout(()=>document.getElementById('main')?.focus({preventScroll:true}),reduce?0:450);
+        });
+        renderLabRoutes();renderLabLibraries();renderLabStage();renderGraphLens(false);setLabView('replay',{focus:false});
+      }catch(error){
+        const replay=document.getElementById('labReplayPanel');replay.replaceChildren();
+        const message=document.createElement('div'),title=document.createElement('h3'),copy=document.createElement('p');
+        message.className='lab-error';title.textContent='Decision Lab 暂时无法载入';copy.textContent='经典简历仍然可用，可以继续查看项目与事实。';
+        message.append(title,copy);replay.appendChild(message);
+      }
+    }
     const prog=document.getElementById('progress'),totop=document.getElementById('totop'),nav=document.querySelector('.nav'),hero=document.querySelector('.hero'),heroStack=document.querySelector('.hero-stack');
     const secs=[...document.querySelectorAll('section.tile,header.hero')],links=[...document.querySelectorAll('.nav a')];
     let scrollQueued=false,activeSection='';
@@ -633,53 +1214,106 @@
       c.addEventListener('mousemove',e=>{tip.style.left=(e.clientX+12)+'px';tip.style.top=(e.clientY+12)+'px'});
       c.addEventListener('mouseleave',()=>tip.style.opacity=0)});
 
-    /* ---- 问答 Agent ---- */
+    /* ---- 欢迎层、访问统计与问答窗共用一个 modal 边界。 ---- */
     const fab=document.getElementById('chatFab'),panel=document.getElementById('chatPanel'),
       cbody=document.getElementById('chatBody'),cinput=document.getElementById('chatInput'),
       csend=document.getElementById('chatSend'),cstatus=document.getElementById('chatStatus'),
-      cfoot=document.getElementById('chatFoot'),endpoint=fab.dataset.agentEndpoint;
-    const visitStat=document.getElementById('visitStat');
-    // 访问统计仅在线上页面启用；本地 file:// 预览不请求、不计数。
-    async function loadVisitStats(){
-      if(!visitStat||!/^https?:$/.test(location.protocol))return;
-      const storageKey='workme-visit-counted-at',dedupeMs=30*60*1000,now=Date.now();
-      let countedAt=0;
-      try{countedAt=Number(localStorage.getItem(storageKey))||0}catch(_){/* 存储不可用时按首次访问处理。 */}
-      const countedRecently=countedAt>0&&now-countedAt>=0&&now-countedAt<dedupeMs;
-      try{
-        const path=countedRecently?'/analytics/stats':'/analytics/visit';
-        const res=await fetch(new URL(path,endpoint),{method:countedRecently?'GET':'POST',headers:{Accept:'application/json'},cache:'no-store'});
-        if(!res.ok)throw new Error('HTTP '+res.status);
-        const data=await res.json();
-        const dateValid=typeof data.startedAt==='string'&&/^\d{4}-\d{2}-\d{2}$/.test(data.startedAt)&&
-          new Date(data.startedAt+'T00:00:00Z').toISOString().slice(0,10)===data.startedAt;
-        // 0 不作为页面内容展示；接口异常或字段不合法时保持整个统计隐藏。
-        if(!Number.isSafeInteger(data.visits)||data.visits<=0||!dateValid)return;
-        if(!countedRecently)try{localStorage.setItem(storageKey,String(now))}catch(_){/* 不影响本次展示。 */}
-        visitStat.textContent='自 '+data.startedAt+' 起 · '+new Intl.NumberFormat('zh-CN').format(data.visits)+' 次访问';
-        visitStat.hidden=false;
-      }catch(_){visitStat.hidden=true;visitStat.textContent=''}
+      cfoot=document.getElementById('chatFoot'),endpoint=fab.dataset.agentEndpoint,
+      intro=document.getElementById('intro'),introClassic=document.getElementById('introClassic'),introExplore=document.getElementById('introExplore'),
+      introVisit=document.getElementById('introVisit'),heroVisit=document.getElementById('heroVisit'),
+      heroVisitText=document.getElementById('heroVisitText'),visitStat=document.getElementById('visitStat');
+    const pageRegions=[document.querySelector('.skip-link'),nav,document.getElementById('main'),document.querySelector('footer'),totop,fab].filter(Boolean);
+    let busy=false,activeChatController=null,activeModal=null,chatLastFocus=null,introLastFocus=null,
+      introReadyTimer=0,visitStatsPromise=null;
+    function setBusy(state){busy=state;csend.disabled=state;cfoot.setAttribute('aria-busy',String(state));cbody.setAttribute('aria-busy',String(state));cstatus.textContent=state?'正在生成回答':''}
+    function setPageInert(state){pageRegions.forEach(el=>el.inert=state);document.body.classList.toggle('modal-open',state)}
+    function trapFocus(event,root){
+      if(event.key!=='Tab')return;
+      const focusable=[...root.querySelectorAll('button:not([disabled]),input:not([disabled]),select:not([disabled]),a[href]')]
+        .filter(el=>!el.hidden&&el.offsetParent!==null);
+      if(!focusable.length){event.preventDefault();return}
+      const first=focusable[0],last=focusable[focusable.length-1];
+      if(!root.contains(document.activeElement)){event.preventDefault();(event.shiftKey?last:first).focus()}
+      else if(event.shiftKey&&document.activeElement===first){event.preventDefault();last.focus()}
+      else if(!event.shiftKey&&document.activeElement===last){event.preventDefault();first.focus()}
     }
-    loadVisitStats();
-    const pageRegions=[document.querySelector('.skip-link'),nav,document.getElementById('main'),document.querySelector('footer'),totop].filter(Boolean);
-    let busy=false,lastFocus=null;
-    function setBusy(state){busy=state;csend.disabled=state;cfoot.setAttribute('aria-busy',String(state));cstatus.textContent=state?'正在生成回答':''}
-    function openChat(){lastFocus=document.activeElement;pageRegions.forEach(el=>el.inert=true);panel.inert=false;panel.setAttribute('aria-hidden','false');fab.setAttribute('aria-expanded','true');fab.tabIndex=-1;panel.classList.add('open');fab.classList.add('hide');setTimeout(()=>cinput.focus(),reduce?0:300)}
-    function closeChat(){panel.classList.remove('open');panel.setAttribute('aria-hidden','true');panel.inert=true;pageRegions.forEach(el=>el.inert=false);fab.setAttribute('aria-expanded','false');fab.tabIndex=0;fab.classList.remove('hide');(lastFocus&&lastFocus.isConnected?lastFocus:fab).focus()}
-    fab.addEventListener('click',openChat);
-    document.getElementById('chatClose').addEventListener('click',closeChat);
-    document.addEventListener('keydown',e=>{
-      if(!panel.classList.contains('open'))return;
-      if(e.key==='Escape'){closeChat();return}
-      if(e.key==='Tab'){
-        const focusable=[...panel.querySelectorAll('button:not([disabled]),input:not([disabled]),a[href]')];
-        if(!focusable.length){e.preventDefault();return}
-        const first=focusable[0],last=focusable[focusable.length-1];
-        if(!panel.contains(document.activeElement)){e.preventDefault();(e.shiftKey?last:first).focus()}
-        else if(e.shiftKey&&document.activeElement===first){e.preventDefault();last.focus()}
-        else if(!e.shiftKey&&document.activeElement===last){e.preventDefault();first.focus()}
+    function openIntro(manual=false){
+      if(activeModal==='chat')closeChat(false);activeModal='intro';introLastFocus=manual?document.activeElement:document.getElementById('main');
+      clearTimeout(introReadyTimer);intro.dataset.view='welcome';intro.classList.remove('closing','ready');
+      setPageInert(true);panel.inert=true;intro.inert=false;intro.setAttribute('aria-hidden','false');intro.classList.add('open');
+      document.documentElement.classList.remove('intro-pending');
+      try{sessionStorage.setItem('workme-welcome-seen-v1','1')}catch(_){/* 不影响欢迎层。 */}
+      const readyDelay=manual||reduce?0:720;
+      introReadyTimer=setTimeout(()=>{intro.classList.add('ready');introClassic.focus({preventScroll:true})},readyDelay);
+    }
+    function closeIntro({restoreFocus=true,after=null}={}){
+      if(activeModal!=='intro')return;activeModal=null;clearTimeout(introReadyTimer);intro.classList.add('closing');
+      const finish=()=>{intro.classList.remove('open','closing','ready');intro.setAttribute('aria-hidden','true');intro.inert=true;if(activeModal===null)setPageInert(false);
+        if(restoreFocus){const target=introLastFocus&&introLastFocus.isConnected?introLastFocus:document.getElementById('main');target.focus?.({preventScroll:true})}if(after)after()};
+      setTimeout(finish,reduce?0:320);
+    }
+    function showDecisionLab(){
+      const section=document.getElementById('decision-lab');section?.scrollIntoView({behavior:reduce?'auto':'smooth',block:'start'});
+      setTimeout(()=>document.getElementById('decisionLabTitle')?.focus({preventScroll:true}),reduce?0:480);
+    }
+    function openChat(){
+      if(activeModal==='intro')closeIntro({restoreFocus:false});activeModal='chat';chatLastFocus=document.activeElement;setPageInert(true);
+      intro.inert=true;panel.inert=false;panel.setAttribute('aria-hidden','false');fab.setAttribute('aria-expanded','true');fab.tabIndex=-1;panel.classList.add('open');fab.classList.add('hide');
+      setTimeout(()=>cinput.focus(),reduce?0:300);
+    }
+    function closeChat(restoreFocus=true){
+      if(activeModal!=='chat')return;if(activeChatController)activeChatController.abort();activeModal=null;panel.classList.remove('open');panel.setAttribute('aria-hidden','true');panel.inert=true;
+      setPageInert(false);fab.setAttribute('aria-expanded','false');fab.tabIndex=0;fab.classList.remove('hide');if(restoreFocus)(chatLastFocus&&chatLastFocus.isConnected?chatLastFocus:fab).focus();
+    }
+
+    // 欢迎层、Hero 标记和页脚共享同一个 Promise，避免为同一次加载重复 POST。
+    function applyVisitStats(result){
+      heroVisit.hidden=false;
+      if(!result){introVisit.textContent='欢迎进入一个持续生长的 WorkMe 系统';heroVisitText.textContent='WORKME ONLINE';visitStat.hidden=true;visitStat.textContent='';return}
+      const n=new Intl.NumberFormat('zh-CN').format(result.visits);
+      introVisit.textContent=result.countedRecently?'欢迎回来，这里已经记录了 '+n+' 次到访':'你刚好见证了这里的第 '+n+' 次到访';
+      heroVisitText.textContent='VISITS · '+n;visitStat.textContent='自 '+result.startedAt+' 起 · '+n+' 次访问';visitStat.hidden=false;
+    }
+    function loadVisitStats(){
+      if(visitStatsPromise)return visitStatsPromise;
+      visitStatsPromise=(async()=>{
+        if(!/^https?:$/.test(location.protocol))return null;
+        const local=/^(localhost|127\.0\.0\.1|\[::1\])$/.test(location.hostname),
+          statsEndpoint=local?document.body.dataset.localStatsEndpoint:document.body.dataset.statsEndpoint;
+        if(!statsEndpoint)return null;const storageKey='workme-visit-counted-at-'+(local?'local':'production'),dedupeMs=30*60*1000;
+        const requestOnce=async()=>{
+          const now=Date.now();let countedAt=0;try{countedAt=Number(localStorage.getItem(storageKey))||0}catch(_){/* 按首次到访处理。 */}
+          const countedRecently=countedAt>0&&now-countedAt>=0&&now-countedAt<dedupeMs,path=countedRecently?'/analytics/stats':'/analytics/visit';
+          const controller=new AbortController(),timeout=setTimeout(()=>controller.abort(),3500);
+          try{
+            const res=await fetch(new URL(path,statsEndpoint),{method:countedRecently?'GET':'POST',headers:{Accept:'application/json'},cache:'no-store',signal:controller.signal});
+            if(!res.ok)throw new Error('HTTP '+res.status);const data=await res.json();
+            const dateValid=typeof data.startedAt==='string'&&/^\d{4}-\d{2}-\d{2}$/.test(data.startedAt)&&new Date(data.startedAt+'T00:00:00Z').toISOString().slice(0,10)===data.startedAt;
+            if(!Number.isSafeInteger(data.visits)||data.visits<=0||!dateValid)return null;
+            if(!countedRecently)try{localStorage.setItem(storageKey,String(now))}catch(_){/* 展示不依赖本地存储。 */}
+            return {visits:data.visits,startedAt:data.startedAt,countedRecently};
+          }finally{clearTimeout(timeout)}
+        };
+        try{return navigator.locks?await navigator.locks.request('workme-visit-counter-'+(local?'local':'production'),requestOnce):await requestOnce()}catch(_){return null}
+      })();
+      visitStatsPromise.then(applyVisitStats);return visitStatsPromise;
+    }
+
+    document.getElementById('introSkip').addEventListener('click',()=>closeIntro());
+    introClassic.addEventListener('click',()=>closeIntro());
+    introExplore.addEventListener('click',()=>closeIntro({restoreFocus:false,after:showDecisionLab}));
+    heroVisit.addEventListener('click',()=>openIntro(true));
+    fab.addEventListener('click',openChat);document.getElementById('chatClose').addEventListener('click',()=>closeChat());
+    document.addEventListener('keydown',event=>{
+      if(activeModal==='intro'){
+        if(event.key==='Escape'){event.preventDefault();closeIntro();return}trapFocus(event,intro);return;
+      }
+      if(activeModal==='chat'){
+        if(event.key==='Escape'){event.preventDefault();closeChat();return}trapFocus(event,panel);
       }
     });
+    clearTimeout(window.__workmeIntroFailSafe);loadVisitStats();
+    if(document.documentElement.classList.contains('intro-pending'))openIntro(false);else document.documentElement.classList.remove('intro-pending');
     document.getElementById('chatChips').addEventListener('click',e=>{
       if(e.target.classList.contains('chat-chip')){cinput.value=e.target.textContent;send()}});
     // 把 LLM 返回的 Markdown 安全渲染成 HTML：先转义（防 XSS），再套有限的 md 标记
@@ -709,6 +1343,7 @@
     }
     async function send(){
       const q=cinput.value.trim();if(!q||busy)return;
+      const requestController=new AbortController();activeChatController=requestController;
       setBusy(true);cinput.value='';
       const chips=document.getElementById('chatChips');if(chips)chips.remove();
       addMsg('u',q);
@@ -739,12 +1374,14 @@
       };
       const appendAnswer=text=>{
         if(!text)return;
-        ensureAnswerNode();pendingChars.push(...Array.from(text));
+        ensureAnswerNode();
+        if(reduce){answer+=text;queueRender();return}
+        pendingChars.push(...Array.from(text));
         if(!revealTimer)revealTimer=setTimeout(revealNext,0);
       };
       const waitForReveal=()=>pendingChars.length||revealTimer?new Promise(resolve=>drainWaiters.push(resolve)):Promise.resolve();
       try{
-        const res=await fetch(endpoint,{method:'POST',headers:{'Content-Type':'application/json','Accept':'text/event-stream'},body:JSON.stringify({question:q})});
+        const res=await fetch(endpoint,{method:'POST',headers:{'Content-Type':'application/json','Accept':'text/event-stream'},body:JSON.stringify({question:q}),signal:requestController.signal});
         if(!res.ok){
           const data=await res.json().catch(()=>({}));
           dots.remove();addMsg('a err',data.error||('出错了：HTTP '+res.status));return;
@@ -770,6 +1407,8 @@
             const payload=dataLines.join('\n');
             if(eventName==='delta'){
               const data=JSON.parse(payload||'{}');appendAnswer(typeof data.text==='string'?data.text:'');
+            }else if(eventName==='status'){
+              try{const data=JSON.parse(payload||'{}');if(typeof data.message==='string'&&data.message){cstatus.textContent=data.message;dots.setAttribute('aria-label',data.message)}}catch(_){/* 状态仅用于提示，不影响回答。 */}
             }else if(eventName==='done')doneSeen=true;
             else if(eventName==='error'){
               try{streamError=JSON.parse(payload||'{}').message||'回答生成中断。'}catch(_){streamError='回答生成中断。'}
@@ -803,6 +1442,10 @@
         if(!answer.trim())throw new Error('Empty streaming response');
         ensureAnswerNode().classList.remove('streaming');answerNode.removeAttribute('aria-busy');finishRender();
       }catch(err){
+        if(err&&err.name==='AbortError'){
+          if(answerNode){await waitForReveal();answerNode.classList.remove('streaming');answerNode.removeAttribute('aria-busy');finishRender()}
+          return;
+        }
         if(answerNode&&(answer.trim()||pendingChars.length)){
           await waitForReveal();
           answerNode.classList.remove('streaming');answerNode.removeAttribute('aria-busy');finishRender();
@@ -813,7 +1456,7 @@
           addMsg('a err','暂时无法连接问答服务。'+hint);
         }
       }
-      finally{dots.remove();setBusy(false);if(panel.classList.contains('open'))cinput.focus()}
+      finally{dots.remove();if(activeChatController===requestController)activeChatController=null;setBusy(false);if(panel.classList.contains('open'))cinput.focus()}
     }
     csend.addEventListener('click',send);
     cinput.addEventListener('keydown',e=>{if(e.key==='Enter'&&!e.isComposing)send()});
