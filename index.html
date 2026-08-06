@@ -353,6 +353,7 @@
   .chat-msg.a .cm-h{display:block;margin:8px 0 4px;font-size:15px}
   .chat-msg.a code{background:rgba(0,0,0,.06);padding:1px 5px;border-radius:5px;font-size:13px;font-family:ui-monospace,monospace}
   .chat-msg.a a{color:var(--primary);text-decoration:underline}
+  .chat-stream-note{display:block;margin-top:8px;font-size:12px;color:var(--ink-48)}
   .chat-msg.u{align-self:flex-end;background:var(--primary);color:#fff;border-bottom-right-radius:5px}
   .chat-msg.a{align-self:flex-start;background:var(--parchment);color:var(--ink);border-bottom-left-radius:5px}
   .chat-msg.a.err{background:#fff2f2;color:#c0261f}
@@ -680,7 +681,7 @@
       if(e.target.classList.contains('chat-chip')){cinput.value=e.target.textContent;send()}});
     // 把 LLM 返回的 Markdown 安全渲染成 HTML：先转义（防 XSS），再套有限的 md 标记
     function mdToHtml(s){
-      s=s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+      s=s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
       s=s.replace(/`([^`]+)`/g,'<code>$1</code>');
       s=s.replace(/\*\*([^*]+)\*\*/g,'<strong>$1</strong>').replace(/(?<![*])\*(?!\s)([^*]+?)\*/g,'<em>$1</em>');
       s=s.replace(/\[([^\]]+)\]\((https?:\/\/[^)]+)\)/g,'<a href="$2" target="_blank" rel="noopener">$1</a>');
@@ -709,14 +710,55 @@
       const chips=document.getElementById('chatChips');if(chips)chips.remove();
       addMsg('u',q);
       const dots=document.createElement('div');dots.className='chat-msg a chat-dots';dots.setAttribute('aria-hidden','true');dots.innerHTML='<span class="dot"></span><span class="dot"></span><span class="dot"></span>';cbody.appendChild(dots);cbody.scrollTop=cbody.scrollHeight;
+      let answer='',answerNode=null,renderFrame=0;
+      const renderAnswer=()=>{
+        renderFrame=0;if(!answerNode)return;
+        const stickToBottom=cbody.scrollHeight-cbody.scrollTop-cbody.clientHeight<80;
+        answerNode.innerHTML=mdToHtml(answer);
+        if(stickToBottom)cbody.scrollTop=cbody.scrollHeight;
+      };
+      const queueRender=()=>{if(!renderFrame)renderFrame=requestAnimationFrame(renderAnswer)};
+      const finishRender=()=>{if(renderFrame)cancelAnimationFrame(renderFrame);renderAnswer()};
+      const ensureAnswerNode=()=>{
+        if(!answerNode){
+          dots.remove();answerNode=addMsg('a','');answerNode.classList.add('streaming');answerNode.setAttribute('aria-busy','true');
+        }
+        return answerNode;
+      };
       try{
-        const res=await fetch(endpoint,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({question:q})});
-        const data=await res.json().catch(()=>({}));
-        if(!res.ok)addMsg('a err',data.error||('出错了：HTTP '+res.status));
-        else addMsg('a',data.answer||'未返回内容。');
+        const res=await fetch(endpoint,{method:'POST',headers:{'Content-Type':'application/json','Accept':'text/plain'},body:JSON.stringify({question:q})});
+        if(!res.ok){
+          const data=await res.json().catch(()=>({}));
+          dots.remove();addMsg('a err',data.error||('出错了：HTTP '+res.status));return;
+        }
+
+        // 兼容尚未升级的旧 Worker：JSON 仍按原协议一次性显示。
+        const responseType=(res.headers.get('Content-Type')||'').toLowerCase();
+        if(responseType.includes('application/json')){
+          const data=await res.json().catch(()=>({}));
+          dots.remove();addMsg('a',data.answer||'未返回内容。');return;
+        }
+        if(!res.body)throw new Error('Streaming response body unavailable');
+
+        const reader=res.body.getReader(),decoder=new TextDecoder();
+        while(true){
+          const part=await reader.read();
+          if(part.done)break;
+          const text=decoder.decode(part.value,{stream:true});
+          if(!text)continue;
+          answer+=text;ensureAnswerNode();queueRender();
+        }
+        answer+=decoder.decode();
+        if(!answer.trim())throw new Error('Empty streaming response');
+        ensureAnswerNode().classList.remove('streaming');answerNode.removeAttribute('aria-busy');finishRender();
       }catch(err){
-        const hint=location.protocol==='file:'?'请通过本地服务器预览，并先运行 wrangler dev。':'请稍后重试。';
-        addMsg('a err','暂时无法连接问答服务。'+hint);
+        if(answerNode&&answer.trim()){
+          answerNode.classList.remove('streaming');answerNode.removeAttribute('aria-busy');finishRender();
+          const note=document.createElement('span');note.className='chat-stream-note';note.textContent='连接中断，以上回答可能不完整。';answerNode.appendChild(note);
+        }else{
+          const hint=location.protocol==='file:'?'请通过本地服务器预览，并先运行 wrangler dev。':'请稍后重试。';
+          addMsg('a err','暂时无法连接问答服务。'+hint);
+        }
       }
       finally{dots.remove();setBusy(false);if(panel.classList.contains('open'))cinput.focus()}
     }
