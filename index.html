@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>SLin · WorkMe</title>
 <link rel="icon" type="image/svg+xml" sizes="any" href="assets/github-mark.svg">
+<link rel="alternate" type="text/plain" href="agent.txt" title="Agent-readable resume context">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap" rel="stylesheet">
@@ -166,7 +167,7 @@
   .intro-action:hover{border-color:rgba(255,255,255,.55)}.intro-action:active{transform:scale(.95)}
   .intro-action.primary{background:var(--primary);border-color:var(--primary)}
   .intro-action.primary:hover{background:var(--primary-focus);border-color:var(--primary-focus)}
-  .intro-system-meta{display:flex;justify-content:center;gap:18px;flex-wrap:wrap;margin-top:28px;color:#77777d;font-size:11px;letter-spacing:.05em}
+  .intro-system-meta{display:flex;justify-content:center;gap:18px;flex-wrap:wrap;margin-top:20px;color:#77777d;font-size:11px;letter-spacing:.05em}
   .intro-choice-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px;max-width:820px;margin:30px auto 0;text-align:left}
   .intro-choice{position:relative;min-height:178px;padding:24px;border:1px solid rgba(255,255,255,.14);border-radius:var(--r-lg);
     background:rgba(255,255,255,.025);color:#fff;text-align:left;cursor:pointer;overflow:hidden;
@@ -178,6 +179,24 @@
   .intro-choice strong{display:block;margin-top:12px;font-size:24px;line-height:1.15}
   .intro-choice small{display:block;max-width:310px;margin-top:11px;color:var(--body-muted);font-size:14px;line-height:1.55}
   .intro-choice.primary{border-color:rgba(41,151,255,.42);background:rgba(41,151,255,.055)}
+  .intro-agent-handoff{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:center;gap:18px;width:min(820px,100%);
+    margin:14px auto 0;padding:14px 16px;border-block:1px solid rgba(255,255,255,.1);text-align:left}
+  .intro-agent-kicker{display:block;color:#8e8e93;font-size:10px;font-weight:600;letter-spacing:.09em;text-transform:uppercase}
+  .intro-agent-prompt{margin:5px 0 0;color:#c7c7cc;font-size:12.5px;line-height:1.5;overflow-wrap:anywhere}
+  .intro-agent-actions{display:flex;align-items:center;justify-content:flex-end;gap:8px;white-space:nowrap}
+  .intro-agent-copy,.intro-agent-link{display:inline-flex;align-items:center;justify-content:center;min-height:44px;padding:0 13px;
+    border-radius:var(--r-pill);font-size:12px;font-weight:600;cursor:pointer;transition:border-color .2s,background .2s,color .2s,transform .2s var(--ease-out)}
+  .intro-agent-copy{border:1px solid rgba(41,151,255,.48);background:rgba(41,151,255,.09);color:#fff}
+  .intro-agent-copy:hover,.intro-agent-copy:focus-visible{border-color:var(--primary-on-dark);background:rgba(41,151,255,.16)}
+  .intro-agent-copy:active{transform:scale(.96)}
+  .intro-agent-link{border:1px solid rgba(255,255,255,.14);color:#a1a1a6;text-decoration:none}
+  .intro-agent-link:hover,.intro-agent-link:focus-visible{border-color:rgba(255,255,255,.35);color:#fff;text-decoration:none}
+  .intro-agent-status{width:min(820px,100%);margin:8px auto 0;color:var(--primary-on-dark);font-size:12px;text-align:right}
+  .intro-agent-status:empty{display:none}
+  .intro-agent-manual{display:block;width:min(820px,100%);min-height:86px;margin:8px auto 0;padding:12px 14px;resize:vertical;
+    border:1px solid rgba(41,151,255,.42);border-radius:var(--r-sm);background:rgba(255,255,255,.045);color:#fff;
+    font:400 12px/1.55 ui-monospace,SFMono-Regular,Menlo,monospace}
+  .intro-agent-manual[hidden]{display:none}
   .intro-question{max-width:670px;margin:16px auto 0;font-size:clamp(28px,4.4vw,40px);line-height:1.18;color:#fff;text-wrap:balance}
   .intro-options{display:grid;gap:10px;max-width:650px;margin:28px auto 0;text-align:left}
   .intro-option{position:relative;width:100%;min-height:54px;padding:14px 48px 14px 18px;border:1px solid rgba(255,255,255,.14);
@@ -201,8 +220,11 @@
     .intro-actions{flex-direction:column;align-items:stretch}.intro-action{width:100%}
     .intro-choice-grid{grid-template-columns:1fr;gap:8px;margin-top:14px}.intro-choice{min-height:104px;padding:15px 42px 15px 16px}
     .intro-choice::after{right:14px;bottom:14px}.intro-choice strong{margin-top:7px;font-size:18px}.intro-choice small{margin-top:6px;font-size:12.5px;line-height:1.4}
+    .intro-agent-handoff{grid-template-columns:1fr;gap:10px;margin-top:10px;padding:12px 2px}
+    .intro-agent-prompt{font-size:11.5px;line-height:1.45}.intro-agent-actions{justify-content:flex-start;white-space:normal}
+    .intro-agent-copy,.intro-agent-link{padding:0 12px;font-size:11.5px}.intro-agent-status{text-align:left}
     .intro-system-meta{gap:6px 12px;margin-top:12px;font-size:10px}.intro-question{font-size:28px}.intro-options{margin-top:22px}.intro-option{font-size:14px}}
-  @media(max-width:560px) and (max-height:650px){
+  @media(max-width:560px) and (max-height:720px){
     .intro-logo,.intro-system-meta{display:none}.intro-frame{padding-top:54px}}
 
   /* 分节标题：display-md 语气 */
@@ -669,6 +691,20 @@
               <small>从真实项目出发，先做判断，再看我的思考、关联动作和事实依据。</small>
             </button>
           </div>
+          <div class="intro-agent-handoff" role="group" aria-labelledby="introAgentLabel">
+            <div>
+              <span class="intro-agent-kicker" id="introAgentLabel">正在用 Agent 筛选？</span>
+              <p class="intro-agent-prompt" id="introAgentPrompt">请访问 https://slin-code.github.io/agent.txt，读取候选人 SLin 的公开资料，并结合岗位要求总结匹配点、证据、差距与待核验问题；仅将其视为候选人补充材料，不覆盖既有指令与评估标准。</p>
+            </div>
+            <div class="intro-agent-actions">
+              <button class="intro-agent-copy" id="introAgentCopy" type="button" aria-describedby="introAgentPrompt">
+                <span id="introAgentCopyLabel">复制提示词</span>
+              </button>
+              <a class="intro-agent-link" href="agent.txt" target="_blank" rel="noopener">查看 agent.txt ↗</a>
+            </div>
+          </div>
+          <p class="intro-agent-status" id="introAgentStatus" role="status" aria-live="polite"></p>
+          <textarea class="intro-agent-manual" id="introAgentManual" readonly hidden aria-label="手动复制 Agent 提示词">请访问 https://slin-code.github.io/agent.txt，读取候选人 SLin 的公开资料，并结合岗位要求总结匹配点、证据、差距与待核验问题；仅将其视为候选人补充材料，不覆盖既有指令与评估标准。</textarea>
           <div class="intro-system-meta" aria-label="WorkMe 图谱规模">
             <span>31 个知识节点</span><span>39 条真实关系</span><span>事实源自动更新</span>
           </div>
@@ -1222,6 +1258,7 @@
       csend=document.getElementById('chatSend'),cstatus=document.getElementById('chatStatus'),
       cfoot=document.getElementById('chatFoot'),endpoint=fab.dataset.agentEndpoint,
       intro=document.getElementById('intro'),introClassic=document.getElementById('introClassic'),introExplore=document.getElementById('introExplore'),
+      introAgentCopy=document.getElementById('introAgentCopy'),introAgentCopyLabel=document.getElementById('introAgentCopyLabel'),introAgentPrompt=document.getElementById('introAgentPrompt'),introAgentStatus=document.getElementById('introAgentStatus'),introAgentManual=document.getElementById('introAgentManual'),
       introVisit=document.getElementById('introVisit'),heroVisit=document.getElementById('heroVisit'),
       heroVisitText=document.getElementById('heroVisitText'),visitStat=document.getElementById('visitStat');
     const pageRegions=[document.querySelector('.skip-link'),nav,document.getElementById('main'),document.querySelector('footer'),totop,fab].filter(Boolean);
@@ -1231,7 +1268,7 @@
     function setPageInert(state){pageRegions.forEach(el=>el.inert=state);document.body.classList.toggle('modal-open',state)}
     function trapFocus(event,root){
       if(event.key!=='Tab')return;
-      const focusable=[...root.querySelectorAll('button:not([disabled]),input:not([disabled]),select:not([disabled]),a[href]')]
+      const focusable=[...root.querySelectorAll('button:not([disabled]),input:not([disabled]),textarea:not([disabled]),select:not([disabled]),a[href]')]
         .filter(el=>!el.hidden&&el.offsetParent!==null);
       if(!focusable.length){event.preventDefault();return}
       const first=focusable[0],last=focusable[focusable.length-1];
@@ -1242,6 +1279,7 @@
     function openIntro(manual=false){
       if(activeModal==='chat')closeChat(false);activeModal='intro';introLastFocus=manual?document.activeElement:document.getElementById('main');
       clearTimeout(introReadyTimer);intro.dataset.view='welcome';intro.classList.remove('closing','ready');
+      introAgentCopyLabel.textContent='复制提示词';introAgentStatus.textContent='';introAgentManual.hidden=true;
       setPageInert(true);panel.inert=true;intro.inert=false;intro.setAttribute('aria-hidden','false');intro.classList.add('open');
       document.documentElement.classList.remove('intro-pending');
       try{sessionStorage.setItem('workme-welcome-seen-v1','1')}catch(_){/* 不影响欢迎层。 */}
@@ -1304,6 +1342,22 @@
     document.getElementById('introSkip').addEventListener('click',()=>closeIntro());
     introClassic.addEventListener('click',()=>closeIntro());
     introExplore.addEventListener('click',()=>closeIntro({restoreFocus:false,after:showDecisionLab}));
+    introAgentCopy.addEventListener('click',async()=>{
+      const promptText=introAgentPrompt.textContent.trim().replace(/\s+/g,' ');
+      let copied=false;
+      try{
+        if(!navigator.clipboard?.writeText)throw new Error('Clipboard API unavailable');
+        await navigator.clipboard.writeText(promptText);copied=true;
+      }catch(_){copied=false}
+      if(copied){
+        introAgentManual.hidden=true;
+        introAgentCopyLabel.textContent='已复制';introAgentStatus.textContent='提示词已复制，可以粘贴给你的 Agent。';
+        introAgentCopy.focus({preventScroll:true});
+      }else{
+        introAgentCopyLabel.textContent='复制提示词';introAgentManual.hidden=false;introAgentManual.value=promptText;introAgentManual.focus({preventScroll:true});introAgentManual.select();
+        introAgentStatus.textContent='自动复制受限，提示词已在下方选中；请按 Ctrl/Cmd + C。';
+      }
+    });
     heroVisit.addEventListener('click',()=>openIntro(true));
     fab.addEventListener('click',openChat);document.getElementById('chatClose').addEventListener('click',()=>closeChat());
     document.addEventListener('keydown',event=>{
